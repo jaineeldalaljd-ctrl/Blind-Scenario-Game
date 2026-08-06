@@ -37,8 +37,8 @@ const DEFAULT_SETTINGS = {
   rosterSize: 5,
   bidSeconds: 10,      // clock after each bid
   openSeconds: 14,     // clock when a lot first hits the block
-  pitchSeconds: 150,
-  voteSeconds: 60,
+  pitchSeconds: 60,    // one tap and an optional line -- no essays
+  voteSeconds: 45,
 };
 
 const LIMITS = {
@@ -46,9 +46,12 @@ const LIMITS = {
   rosterSize: [3, 7],
   bidSeconds: [5, 30],
   openSeconds: [6, 40],
-  pitchSeconds: [30, 600],
-  voteSeconds: [20, 300],
+  pitchSeconds: [20, 600],
+  voteSeconds: [15, 300],
 };
+
+// The one-liner is optional and deliberately short: the real pitch is spoken.
+const LINE_MAX = 120;
 
 const MAX_PLAYERS = 8;
 const SOLD_PAUSE_MS = 2600;
@@ -100,7 +103,8 @@ class Room {
       connected: true,
       budget: this.settings.budget,
       roster: [],
-      pitch: '',
+      mvpId: null,
+      line: '',
       pitchSubmitted: false,
       vote: null,
       score: 0,
@@ -186,7 +190,8 @@ class Room {
     for (const p of players) {
       p.budget = this.settings.budget;
       p.roster = [];
-      p.pitch = '';
+      p.mvpId = null;
+      p.line = '';
       p.pitchSubmitted = false;
       p.vote = null;
       p.roundVotes = 0;
@@ -343,30 +348,50 @@ class Room {
     this.phase = 'pitch';
     this.deadline = nowMs() + this.settings.pitchSeconds * 1000;
     for (const p of this.activePlayers()) {
-      p.pitch = '';
+      p.mvpId = null;
+      p.line = '';
       p.pitchSubmitted = false;
     }
     this.touch();
   }
 
-  submitPitch(playerId, text) {
+  /** Tapping an MVP is the whole required interaction; the line is optional. */
+  setMvp(playerId, mvpId) {
+    const player = this.players.get(playerId);
+    if (!player) return { error: 'You are not in this room.' };
+    if (this.phase !== 'pitch' || player.pitchSubmitted) return { error: 'Too late to change that.' };
+    if (!player.roster.some((c) => c.id === mvpId)) return { error: 'That one is not on your roster.' };
+    player.mvpId = mvpId;
+    this.touch();
+    return { ok: true };
+  }
+
+  submitPitch(playerId, { mvpId, line } = {}) {
     if (this.phase !== 'pitch') return { error: 'Not the pitch phase.' };
     const player = this.players.get(playerId);
     if (!player) return { error: 'You are not in this room.' };
-    player.pitch = String(text || '').slice(0, 900);
+
+    if (mvpId && player.roster.some((c) => c.id === mvpId)) player.mvpId = mvpId;
+    if (!player.mvpId) return { error: 'Pick your MVP first.' };
+
+    player.line = String(line || '').replace(/\s+/g, ' ').trim().slice(0, LINE_MAX);
     player.pitchSubmitted = true;
     this.touch();
     if (this.connectedPlayers().every((p) => p.pitchSubmitted)) this.startVote();
     return { ok: true };
   }
 
-  savePitchDraft(playerId, text) {
-    const player = this.players.get(playerId);
-    if (!player || this.phase !== 'pitch' || player.pitchSubmitted) return;
-    player.pitch = String(text || '').slice(0, 900);
+  /** Anyone who ran out the clock without picking gets their priciest signing. */
+  autoPickMissing() {
+    for (const p of this.activePlayers()) {
+      if (p.mvpId || !p.roster.length) continue;
+      const priciest = p.roster.reduce((best, c) => (c.price > best.price ? c : best), p.roster[0]);
+      p.mvpId = priciest.id;
+    }
   }
 
   startVote() {
+    this.autoPickMissing();
     this.phase = 'vote';
     this.deadline = nowMs() + this.settings.voteSeconds * 1000;
     for (const p of this.activePlayers()) p.vote = null;
@@ -521,7 +546,8 @@ class Room {
       score: p.score,
       wins: p.wins,
       pitchSubmitted: p.pitchSubmitted,
-      pitch: revealPitches || p.id === playerId ? p.pitch : '',
+      mvpId: revealPitches || p.id === playerId ? p.mvpId : null,
+      line: revealPitches || p.id === playerId ? p.line : '',
       voted: Boolean(p.vote),
       vote: revealVotes ? p.vote : (p.id === playerId ? p.vote : null),
       roundVotes: revealVotes ? p.roundVotes : 0,
@@ -571,7 +597,8 @@ class Room {
             emptySlots: this.settings.rosterSize - me.roster.length,
             maxBid: this.maxBidFor(me),
             minBid: this.minNextBid(),
-            pitch: me.pitch,
+            mvpId: me.mvpId,
+            line: me.line,
             pitchSubmitted: me.pitchSubmitted,
             vote: me.vote,
             score: me.score,

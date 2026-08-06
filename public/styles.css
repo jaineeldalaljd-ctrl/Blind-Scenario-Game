@@ -127,18 +127,9 @@ input:disabled, textarea:disabled { opacity: .55; }
   text-align: center;
 }
 
-.rules { border-top: 1px solid var(--line); padding-top: .9rem; }
-.rules summary { cursor: pointer; color: var(--gold-soft); font-weight: 600; font-size: .9rem; }
-.rules ol { margin-top: .75rem; display: grid; gap: .6rem; counter-reset: step; }
-.rules li { color: var(--muted); font-size: .88rem; line-height: 1.5; padding-left: 1.4rem; position: relative; counter-increment: step; }
-.rules li::before {
-  content: counter(step);
-  position: absolute; left: 0; top: .05rem;
-  width: 1rem; height: 1rem; border-radius: 50%;
-  background: var(--ink-3); color: var(--gold);
-  font-size: .68rem; display: grid; place-items: center;
-}
-.rules b { color: var(--text); }
+.steps { display: grid; gap: .5rem; border-top: 1px solid var(--line); padding-top: .9rem; }
+.steps li { display: flex; gap: .6rem; align-items: center; color: var(--muted); font-size: .88rem; }
+.steps span { font-size: 1.05rem; width: 1.5rem; text-align: center; flex: 0 0 auto; }
 
 .home-foot { position: fixed; bottom: .75rem; color: var(--muted); font-size: .78rem; }
 
@@ -259,8 +250,8 @@ input:disabled, textarea:disabled { opacity: .55; }
   border-radius: var(--radius); aspect-ratio: 1;
 }
 .lot-card__body { display: grid; gap: .55rem; align-content: start; min-width: 0; }
-.lot-card__body h2 { font-family: var(--serif); font-size: 1.85rem; }
-.lot-card__blurb { color: var(--muted); line-height: 1.55; }
+.lot-card__body h2 { font-family: var(--serif); font-size: 2.1rem; }
+.lot-card__role { color: var(--gold-soft); font-size: .95rem; margin-top: -.25rem; }
 
 .tag {
   justify-self: start;
@@ -334,17 +325,48 @@ input:disabled, textarea:disabled { opacity: .55; }
 .stakes li::before { content: '→ '; color: var(--gold); }
 
 /* ----------------------------------------------------------------- pitch */
-.pitch-grid { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); grid-template-areas: 'scenario write' 'roster write'; gap: 1rem; align-items: start; }
-.pitch-grid > .card { min-width: 0; }
-#pitch-scenario { grid-area: scenario; }
-.pitch-grid > .card:nth-child(2) { grid-area: roster; }
-.pitch-write { grid-area: write; }
-.pitch-write__foot { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
 
-.scenario-card h4 { margin: 0; font-family: var(--serif); font-size: 1.35rem; color: var(--gold); }
-.scenario-card p { color: var(--muted); line-height: 1.55; font-size: .9rem; }
-.scenario-card .stakes { justify-items: start; text-align: left; }
-.scenario-card .stakes li { line-height: 1.45; }
+/* One strip carries the scenario on both the pitch and vote screens: emoji,
+   title, one line, three stakes. Nothing else needs re-reading. */
+.scenario-strip {
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  background: var(--ink-2); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: .85rem 1rem; margin-bottom: 1rem;
+}
+.scenario-strip > div { flex: 1 1 240px; min-width: 0; }
+.scenario-strip__emoji { font-size: 2.4rem; line-height: 1; }
+.scenario-strip h2 { font-family: var(--serif); font-size: 1.5rem; color: var(--gold); }
+.scenario-strip p { color: var(--muted); font-size: .92rem; line-height: 1.45; margin-top: .15rem; }
+.scenario-strip__stakes { display: flex; gap: .35rem; flex-wrap: wrap; }
+.scenario-strip__stakes li {
+  font-size: .76rem; color: var(--gold-soft);
+  background: rgba(230, 179, 74, .1); border: 1px solid rgba(230, 179, 74, .25);
+  padding: .22rem .55rem; border-radius: 999px;
+}
+
+.prompt { font-size: 1.15rem; font-weight: 700; margin-bottom: .75rem; }
+
+.mvp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .6rem; }
+.mvp-card {
+  position: relative;
+  display: grid; gap: .15rem; justify-items: center; text-align: center;
+  background: var(--ink-2); border: 1px solid var(--line); color: var(--text);
+  border-radius: var(--radius); padding: 1rem .6rem;
+  font: inherit; cursor: pointer;
+  transition: transform .1s ease, border-color .15s ease, background .15s ease;
+}
+.mvp-card:hover:not(:disabled) { border-color: var(--gold-soft); transform: translateY(-2px); }
+.mvp-card:disabled { cursor: default; }
+.mvp-card.is-picked { border-color: var(--gold); background: rgba(230, 179, 74, .12); }
+.mvp-card__emoji { font-size: 2.2rem; line-height: 1; margin-bottom: .3rem; }
+.mvp-card__name { font-weight: 700; font-size: .95rem; line-height: 1.25; }
+.mvp-card__role { color: var(--muted); font-size: .76rem; line-height: 1.3; }
+.mvp-card__star { position: absolute; top: .45rem; right: .55rem; color: var(--gold); opacity: 0; transition: opacity .15s ease; }
+.mvp-card.is-picked .mvp-card__star { opacity: 1; }
+
+.pitch-foot { display: flex; gap: .5rem; margin: .9rem 0; }
+.pitch-foot input { flex: 1; }
+.pitch-foot .btn { flex: 0 0 auto; padding-inline: 1.4rem; }
 
 /* ------------------------------------------------------------------ vote */
 .vote-list { display: grid; gap: .9rem; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
@@ -357,14 +379,15 @@ input:disabled, textarea:disabled { opacity: .55; }
 .vote-card.is-self { opacity: .8; }
 .vote-card__head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
 .vote-card__head h4 { margin: 0; font-size: 1.05rem; }
-.vote-card__pitch { color: var(--text); line-height: 1.6; white-space: pre-wrap; font-size: .93rem; }
-.vote-card__pitch.is-empty { color: var(--muted); font-style: italic; }
+.vote-card__line { color: var(--gold-soft); line-height: 1.5; font-size: .95rem; font-style: italic; }
 .vote-card__crew { display: flex; flex-wrap: wrap; gap: .35rem; }
 .crew-chip {
-  font-size: .76rem; background: var(--ink-3); border: 1px solid var(--line);
-  padding: .22rem .5rem; border-radius: 999px; color: var(--muted);
+  font-size: .78rem; background: var(--ink-3); border: 1px solid var(--line);
+  padding: .25rem .55rem; border-radius: 999px; color: var(--muted);
 }
 .crew-chip b { color: var(--text); font-weight: 600; }
+.crew-chip.is-mvp { border-color: var(--gold); background: rgba(230, 179, 74, .14); color: var(--gold); }
+.crew-chip.is-mvp b { color: var(--gold-soft); }
 
 /* --------------------------------------------------------------- results */
 .results-list { display: grid; gap: .6rem; }
@@ -380,13 +403,9 @@ input:disabled, textarea:disabled { opacity: .55; }
 .result-row__name { font-weight: 700; }
 .result-row__sub { color: var(--muted); font-size: .82rem; }
 .result-row__pitch {
-  margin-top: .5rem; padding-left: .7rem;
-  border-left: 2px solid var(--line);
-  color: var(--text); font-size: .88rem; line-height: 1.55;
-  white-space: pre-wrap;
+  margin-top: .5rem; color: var(--gold-soft);
+  font-size: .9rem; font-style: italic; line-height: 1.5;
 }
-.result-row.is-winner .result-row__pitch { border-left-color: var(--gold); }
-.result-row__pitch.is-empty { color: var(--muted); font-style: italic; }
 .result-row__score { text-align: right; }
 .result-row__score strong { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
 .results-actions { display: flex; gap: .6rem; margin-top: 1.2rem; }
@@ -425,7 +444,6 @@ input:disabled, textarea:disabled { opacity: .55; }
 @media (max-width: 940px) {
   .auction { grid-template-columns: 1fr; }
   .lobby-grid { grid-template-columns: 1fr; }
-  .pitch-grid { grid-template-columns: 1fr; grid-template-areas: 'scenario' 'roster' 'write'; }
   .bidbar__controls { grid-template-columns: 1fr; }
 }
 
@@ -438,4 +456,11 @@ input:disabled, textarea:disabled { opacity: .55; }
   .topbar { padding: .5rem .6rem; }
   .pill { display: none; }
   .results-actions { flex-direction: column; }
+  .prompt { font-size: 1rem; }
+  .mvp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .mvp-card { padding: .8rem .4rem; }
+  .mvp-card__emoji { font-size: 1.8rem; }
+  .scenario-strip { gap: .6rem; padding: .75rem .85rem; }
+  .scenario-strip__emoji { font-size: 1.8rem; }
+  .scenario-strip h2 { font-size: 1.25rem; }
 }

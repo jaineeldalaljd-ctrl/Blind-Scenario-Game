@@ -1,13 +1,17 @@
 # Blind Scenario Auction
 
-A multiplayer party game. Everyone drafts five people from a mixed pool — a chess
-grandmaster, a Bollywood villain, a Michelin chef, a smokejumper — by bidding real
-credits in a live auction. **The scenario is only revealed after the money is spent.**
+A multiplayer party game. Everyone drafts five people from a mixed pool — Magnus
+Carlsen, Amrish Puri, Gordon Ramsay, Virginia Hall — by bidding real credits in a
+live auction. **The scenario is only revealed after the money is spent.**
 
 Zombie outbreak. IPO. Mars transit. Murder trial.
 
-Then you have to stand up and explain why the screaming Michelin chef is, in fact,
-a top-tier apocalypse asset. Everybody votes. Most votes takes the round.
+Then you have to explain, out loud, why Gordon Ramsay is in fact a top-tier
+apocalypse asset. Everybody votes. Most votes takes the round.
+
+The app deliberately does very little reading and almost no typing: cards are a
+name, a role and three tags, and the pitch phase is one tap plus an optional
+one-liner. The arguing happens at the table, not in a text box.
 
 ```
 npm install
@@ -24,8 +28,8 @@ link) to everyone else. One device each, 3–8 players, no accounts.
 | **Lobby** | Host sets budget, roster size and clocks. |
 | **Auction** | People come up one at a time. Live ascending bids — every bid resets the clock, so a bidding war extends itself. Nobody knows the scenario yet. |
 | **Reveal** | Once every roster is full, the envelope opens. |
-| **Pitch** | Each player writes the case for their five against *this* scenario. |
-| **Vote** | Pitches unseal at once. Everyone votes for someone else's crew. |
+| **Pitch** | Tap the one of your five who wins *this* scenario. Optional one-liner. Make the real case out loud. |
+| **Vote** | Picks unseal at once. Everyone votes for someone else's crew. |
 | **Results** | 3 points a vote, +2 for an outright win. Scores carry between rounds. |
 
 ## Design decisions that matter at the table
@@ -39,12 +43,19 @@ at the end is filled from that pile for free. Sitting out is allowed; it just me
 pitching with leftovers.
 
 **Nothing leaks.** The server sends each player a tailored view: other rosters are
-hidden during the auction, pitches stay sealed until the vote opens, and votes stay
-sealed until results. There is no "just don't look" honour system.
+hidden during the auction, MVP picks and one-liners stay sealed until the vote opens,
+and votes stay sealed until results. There is no "just don't look" honour system.
 
-**No real people.** Every card is an archetype with stated traits — that is what
-makes the argument playable. "The Beekeeper: unnaturally calm, understands swarms,
-brings the bees" gives you something to actually reason from at 2am in a Mars capsule.
+**One tap, not an essay.** The only thing the pitch phase requires is nominating
+your MVP. The one-liner is optional and capped at 120 characters, because a party
+game where five people silently type paragraphs at each other is not a party game.
+Anyone who lets the clock run out is credited with their most expensive signing,
+which is usually funnier anyway.
+
+**Three tags per card.** Real names with the role in brackets, then three short
+capability tags — "Gordon Ramsay (Michelin chef): feeds forty from nothing / runs a
+kitchen like a warship / volume". Enough to argue from at 2am in a Mars capsule,
+short enough to read at a glance while a clock is running.
 
 ## Under the hood
 
@@ -52,7 +63,7 @@ brings the bees" gives you something to actually reason from at 2am in a Mars ca
 server/
   index.js            Express + ws: sockets, rooms, fan-out, heartbeat
   game.js             Room state machine — all game rules live here
-  data/characters.js  72 draftable archetypes
+  data/characters.js  72 draftable people
   data/scenarios.js   18 scenarios
 public/               No build step. Plain HTML/CSS/JS, served static.
 test/
@@ -72,7 +83,7 @@ everything, which is fine for a party game and keeps deployment to one process.
 ### Tests
 
 ```
-npm test           # engine (27 tests, no sockets, runs in ms)
+npm test           # engine (31 tests, no sockets, runs in ms)
 npm run test:e2e   # full round over real websockets
 npm run test:all
 ```
@@ -87,13 +98,15 @@ or pushes past the reveal, pitch or vote when the table is ready to move on.
 
 ### Adding your own cards
 
-Append to `server/data/characters.js`:
+Append to `server/data/characters.js` — inside jokes and people you actually know
+make this much better:
 
 ```js
-{ id: 'sommelier', name: 'The Master Sommelier', emoji: '🍷', tag: 'Hands', tier: 1,
-  blurb: 'One of a few hundred on earth. Will tell you about it.',
-  traits: ['Superhuman palate', 'Detects poison, allegedly', 'Insufferable at dinner'] },
+{ id: 'dave', name: 'Dave from Accounts', role: 'Management accountant', emoji: '🧾',
+  tag: 'Systems', tier: 1,
+  traits: ['Finds any money', 'Never takes leave', 'Owns a canoe'] },
 ```
 
-Scenarios follow the same shape in `server/data/scenarios.js`. Give every card at
-least one liability — a card with no downside is a card nobody has to argue for.
+Scenarios follow the same shape in `server/data/scenarios.js`. Keep tags to three
+and under about 30 characters — they are chips, not sentences, and the tests will
+fail you if they get long.

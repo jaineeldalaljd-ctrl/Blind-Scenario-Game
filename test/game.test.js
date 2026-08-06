@@ -47,8 +47,20 @@ test('character and scenario ids are unique', () => {
 
 test('every character carries the fields the UI renders', () => {
   for (const c of CHARACTERS) {
-    assert.ok(c.name && c.emoji && c.tag && c.blurb, `${c.id} missing a field`);
+    assert.ok(c.name && c.emoji && c.tag && c.role, `${c.id} missing a field`);
     assert.ok(Array.isArray(c.traits) && c.traits.length >= 2, `${c.id} needs traits`);
+  }
+});
+
+test('card text stays short enough to scan, not read', () => {
+  for (const c of CHARACTERS) {
+    assert.ok(c.role.length <= 40, `${c.id} role too long: ${c.role}`);
+    for (const t of c.traits) assert.ok(t.length <= 32, `${c.id} trait too long: ${t}`);
+  }
+  for (const s of SCENARIOS) {
+    assert.ok(s.setup.length <= 110, `${s.id} setup too long (${s.setup.length})`);
+    assert.strictEqual(s.stakes.length, 3, `${s.id} should have three stakes`);
+    for (const t of s.stakes) assert.ok(t.length <= 34, `${s.id} stake too long: ${t}`);
   }
 });
 
@@ -231,33 +243,74 @@ test('rosters are private during the auction and public afterwards', () => {
 
 /* --------------------------------------------------------- pitch to score */
 
-test('pitches are sealed until voting opens', () => {
+test('an MVP must come off your own roster', () => {
   const room = makeRoom(3);
   room.startRound();
   runAuction(room);
   room.startPitch();
-  room.submitPitch('p1', 'My chef is an apocalypse asset.');
+  const mine = room.players.get('p0').roster[0].id;
+  const theirs = room.players.get('p1').roster[0].id;
+  assert.ok(room.setMvp('p0', theirs).error, 'cannot nominate someone else’s signing');
+  assert.ok(room.setMvp('p0', 'nobody').error);
+  assert.ok(room.setMvp('p0', mine).ok);
+  assert.strictEqual(room.players.get('p0').mvpId, mine);
+});
+
+test('you cannot go ready without an MVP', () => {
+  const room = makeRoom(3);
+  room.startRound();
+  runAuction(room);
+  room.startPitch();
+  assert.ok(room.submitPitch('p0', { line: 'trust me' }).error);
+  assert.strictEqual(room.players.get('p0').pitchSubmitted, false);
+  assert.ok(room.submitPitch('p0', { mvpId: room.players.get('p0').roster[1].id }).ok);
+});
+
+test('picks and one-liners are sealed until voting opens', () => {
+  const room = makeRoom(3);
+  room.startRound();
+  runAuction(room);
+  room.startPitch();
+  const mvp = room.players.get('p1').roster[0].id;
+  room.submitPitch('p1', { mvpId: mvp, line: 'He has done this before.' });
 
   const seenByOther = room.stateFor('p0').players.find((p) => p.id === 'p1');
-  assert.strictEqual(seenByOther.pitch, '', 'pitch leaked during the pitch phase');
+  assert.strictEqual(seenByOther.line, '', 'one-liner leaked');
+  assert.strictEqual(seenByOther.mvpId, null, 'MVP leaked');
   assert.strictEqual(seenByOther.pitchSubmitted, true, 'readiness is public');
 
   const seenBySelf = room.stateFor('p1').players.find((p) => p.id === 'p1');
-  assert.ok(seenBySelf.pitch.includes('apocalypse'));
+  assert.strictEqual(seenBySelf.mvpId, mvp);
 
-  room.submitPitch('p0', 'Mine is better.');
-  room.submitPitch('p2', 'Mine is best.');
-  assert.strictEqual(room.phase, 'vote', 'all pitches in should open the vote');
-  assert.ok(room.stateFor('p0').players.find((p) => p.id === 'p1').pitch.includes('apocalypse'));
+  room.submitPitch('p0', { mvpId: room.players.get('p0').roster[0].id });
+  room.submitPitch('p2', { mvpId: room.players.get('p2').roster[0].id });
+  assert.strictEqual(room.phase, 'vote', 'everyone ready should open the vote');
+  const now = room.stateFor('p0').players.find((p) => p.id === 'p1');
+  assert.strictEqual(now.mvpId, mvp);
+  assert.match(now.line, /done this before/);
 });
 
-test('pitch text is capped', () => {
+test('the one-liner is capped and tidied', () => {
   const room = makeRoom(2);
   room.startRound();
   runAuction(room);
   room.startPitch();
-  room.submitPitch('p0', 'x'.repeat(5000));
-  assert.strictEqual(room.players.get('p0').pitch.length, 900);
+  room.submitPitch('p0', { mvpId: room.players.get('p0').roster[0].id, line: `  lots   of    space ${'x'.repeat(300)}` });
+  const line = room.players.get('p0').line;
+  assert.strictEqual(line.length, 120);
+  assert.ok(line.startsWith('lots of space'), 'whitespace should collapse');
+});
+
+test('running out the clock nominates your priciest signing', () => {
+  const room = makeRoom(2, { budget: 100, rosterSize: 5 });
+  room.startRound();
+  runAuction(room);
+  room.startPitch();
+  room.startVote(); // nobody picked anything
+  for (const p of room.activePlayers()) {
+    const priciest = p.roster.reduce((best, c) => (c.price > best.price ? c : best), p.roster[0]);
+    assert.strictEqual(p.mvpId, priciest.id, `${p.name} should default to their big buy`);
+  }
 });
 
 test('self-votes are refused and votes stay secret until results', () => {
@@ -334,8 +387,8 @@ test('a disconnected player does not stall the pitch or vote gates', () => {
   runAuction(room);
   room.startPitch();
   room.players.get('p2').connected = false;
-  room.submitPitch('p0', 'a');
-  room.submitPitch('p1', 'b');
+  room.submitPitch('p0', { mvpId: room.players.get('p0').roster[0].id });
+  room.submitPitch('p1', { mvpId: room.players.get('p1').roster[0].id });
   assert.strictEqual(room.phase, 'vote', 'connected players are the quorum');
   room.castVote('p0', 'p1');
   room.castVote('p1', 'p0');

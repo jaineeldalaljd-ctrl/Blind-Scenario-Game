@@ -141,18 +141,33 @@ async function test(name, fn) {
     assert.strictEqual(host.state.room.scenario.id, a.state.room.scenario.id);
   });
 
-  await test('pitches are sealed from other players until the vote', async () => {
+  await test('MVP picks are sealed from other players until the vote', async () => {
     host.send({ type: 'advance' }); // skip the reveal beat
     await until(() => host.state.room.phase === 'pitch', 'pitch phase');
 
-    a.send({ type: 'pitch', text: 'The mortician is load-bearing here.' });
+    const anaMvp = a.state.you.roster[0].id;
+    a.send({ type: 'mvp', mvpId: anaMvp });
+    a.send({ type: 'pitch', mvpId: anaMvp, line: 'He has done worse on a Tuesday.' });
     await until(() => host.state.players.find((p) => p.name === 'Ana').pitchSubmitted, 'ana ready');
-    assert.strictEqual(host.state.players.find((p) => p.name === 'Ana').pitch, '');
 
-    host.send({ type: 'pitch', text: 'Mine is a masterpiece.' });
-    b.send({ type: 'pitch', text: 'I panicked and bought clowns.' });
+    const hidden = host.state.players.find((p) => p.name === 'Ana');
+    assert.strictEqual(hidden.line, '', 'one-liner leaked');
+    assert.strictEqual(hidden.mvpId, null, 'MVP leaked');
+
+    host.send({ type: 'pitch', mvpId: host.state.you.roster[0].id, line: 'Mine is a masterpiece.' });
+    b.send({ type: 'pitch', mvpId: b.state.you.roster[0].id });
     await until(() => host.state.room.phase === 'vote', 'vote phase');
-    assert.match(host.state.players.find((p) => p.name === 'Ana').pitch, /load-bearing/);
+
+    const shown = host.state.players.find((p) => p.name === 'Ana');
+    assert.strictEqual(shown.mvpId, anaMvp);
+    assert.match(shown.line, /Tuesday/);
+  });
+
+  await test('you cannot nominate someone else\'s signing', async () => {
+    b.errors.length = 0;
+    b.send({ type: 'mvp', mvpId: host.state.you.roster[0].id });
+    await until(() => b.errors.length > 0, 'refusal');
+    assert.match(b.errors[0], /not on your roster|Too late/);
   });
 
   await test('votes resolve into scores', async () => {

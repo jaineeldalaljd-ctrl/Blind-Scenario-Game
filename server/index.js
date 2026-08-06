@@ -139,12 +139,13 @@ const HANDLERS = {
     if (result.error) fail(ws, result.error);
   },
 
-  pitchDraft(ws, msg, room, player) {
-    room.savePitchDraft(player.id, msg.text);
+  mvp(ws, msg, room, player) {
+    const result = room.setMvp(player.id, msg.mvpId);
+    if (result.error) fail(ws, result.error);
   },
 
   pitch(ws, msg, room, player) {
-    const result = room.submitPitch(player.id, msg.text);
+    const result = room.submitPitch(player.id, { mvpId: msg.mvpId, line: msg.line });
     if (result.error) fail(ws, result.error);
   },
 

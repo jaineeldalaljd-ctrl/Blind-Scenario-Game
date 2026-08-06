@@ -20,6 +20,13 @@
       Draft five people. Spend every credit. <em>Then</em> find out what you need them for.
     </p>
 
+    <ul class="steps">
+      <li><span>🎯</span> Bid on people. Nobody knows the game yet.</li>
+      <li><span>📜</span> Scenario drops once the money is gone.</li>
+      <li><span>⭐</span> Tap your MVP. Argue out loud.</li>
+      <li><span>🗳️</span> Vote for the best crew. Not your own.</li>
+    </ul>
+
     <label class="field">
       <span>Your name</span>
       <input id="input-name" maxlength="18" placeholder="e.g. Jaineel" autocomplete="nickname" />
@@ -34,15 +41,6 @@
       <button class="btn" type="submit">Join</button>
     </form>
 
-    <details class="rules">
-      <summary>How it plays</summary>
-      <ol>
-        <li><b>The auction.</b> People come up one at a time — a chess grandmaster, a Bollywood villain, a smokejumper. You bid real credits. Nobody knows what the game is yet.</li>
-        <li><b>The reveal.</b> Once every roster is full, the scenario drops. Zombie outbreak. IPO. Mars transit. Murder trial.</li>
-        <li><b>The pitch.</b> You get a few minutes to explain why your five are, in fact, perfect for this.</li>
-        <li><b>The vote.</b> Everyone votes for the best roster — not their own. Most votes takes the round.</li>
-      </ol>
-    </details>
   </div>
   <footer class="home-foot">Best with 3–8 players, one device each.</footer>
 </section>
@@ -110,7 +108,7 @@
             <div class="lot-card__body">
               <span id="lot-tag" class="tag"></span>
               <h2 id="lot-name">Waiting…</h2>
-              <p id="lot-blurb" class="lot-card__blurb"></p>
+              <p id="lot-role" class="lot-card__role"></p>
               <ul id="lot-traits" class="traits"></ul>
             </div>
           </article>
@@ -173,31 +171,20 @@
 
     <!-- ------------------------------------------------------- PITCH -->
     <div id="panel-pitch" class="panel hidden">
-      <div class="pitch-grid">
-        <div class="card scenario-card" id="pitch-scenario"></div>
-        <div class="card">
-          <h3>Your five</h3>
-          <ul id="pitch-roster" class="roster-list roster-list--rich"></ul>
-        </div>
-        <div class="card pitch-write">
-          <h3>Make the case</h3>
-          <p class="muted small">Why is this exactly the crew you would have picked anyway? Sell it.</p>
-          <textarea id="input-pitch" maxlength="900" rows="8" placeholder="The chef is the only one here who can feed forty people from a burned-out supermarket, and frankly the shouting is a feature…"></textarea>
-          <div class="pitch-write__foot">
-            <span id="pitch-count" class="muted small">0 / 900</span>
-            <button id="btn-pitch" class="btn btn--primary">Lock it in</button>
-          </div>
-          <ul id="pitch-status" class="player-list player-list--compact"></ul>
-        </div>
+      <div id="pitch-scenario" class="scenario-strip"></div>
+      <p class="prompt">Tap the one who wins this. <span class="muted">Say the rest out loud.</span></p>
+      <div id="mvp-grid" class="mvp-grid"></div>
+      <div class="pitch-foot">
+        <input id="input-line" maxlength="120" placeholder="One line, if you want (optional)" autocomplete="off" />
+        <button id="btn-pitch" class="btn btn--primary">Ready</button>
       </div>
+      <ul id="pitch-status" class="player-list player-list--compact"></ul>
     </div>
 
     <!-- -------------------------------------------------------- VOTE -->
     <div id="panel-vote" class="panel hidden">
-      <div class="panel__head">
-        <h2>Read them all. Pick one.</h2>
-        <p class="muted" id="vote-scenario-line"></p>
-      </div>
+      <div id="vote-scenario" class="scenario-strip"></div>
+      <p class="prompt">Pick the crew you would rather have. <span class="muted">Not your own.</span></p>
       <div id="vote-list" class="vote-list"></div>
     </div>
 

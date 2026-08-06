@@ -192,7 +192,7 @@ function renderAuction() {
     $('lot-emoji').textContent = lot.character.emoji;
     $('lot-tag').textContent = lot.character.tag;
     $('lot-name').textContent = lot.character.name;
-    $('lot-blurb').textContent = lot.character.blurb;
+    $('lot-role').textContent = `(${lot.character.role})`;
     $('lot-traits').innerHTML = lot.character.traits.map((t) => `<li>${esc(t)}</li>`).join('');
 
     if (lot.status === 'sold') {
@@ -264,6 +264,7 @@ function rosterItems(roster, size) {
       <span class="roster-item__name">${esc(c.name)}</span>
       <span class="roster-item__price${c.free ? ' is-free' : ''}">${c.free ? 'free' : `${c.price}c`}</span>
     </li>`);
+
   for (let i = roster.length; i < size; i++) {
     rows.push('<li class="roster-item roster-item--empty">empty slot</li>');
   }
@@ -283,48 +284,53 @@ function renderReveal() {
 
 /* ----------------------------------------------------------------- pitch */
 
-function renderPitch() {
-  const { room, players, you } = state;
-  const s = room.scenario;
-
-  $('pitch-scenario').innerHTML = `
-    <h3>The scenario</h3>
-    <h4>${s.emoji} ${esc(s.title)}</h4>
-    <p>${esc(s.setup)}</p>
-    <ul class="stakes">${s.stakes.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`;
-
-  $('pitch-roster').innerHTML = you.roster.map((c) => `<li class="roster-item">
-      <span class="roster-item__emoji">${c.emoji}</span>
-      <span class="roster-item__name">${esc(c.name)}
-        <span class="roster-item__sub">${esc(c.traits.join(' · '))}</span>
-      </span>
-      <span class="roster-item__price${c.free ? ' is-free' : ''}">${c.free ? 'free' : `${c.price}c`}</span>
-    </li>`).join('');
-
-  const box = $('input-pitch');
-  if (pitchRoundLoaded !== room.round) {
-    box.value = you.pitch || '';
-    pitchRoundLoaded = room.round;
-    updatePitchCount();
-  }
-  box.disabled = you.pitchSubmitted;
-  $('btn-pitch').disabled = you.pitchSubmitted;
-  $('btn-pitch').textContent = you.pitchSubmitted ? 'Locked in ✓' : 'Lock it in';
-
-  $('pitch-status').innerHTML = players
-    .map((p) => playerRow(p, p.pitchSubmitted ? '✓ ready' : 'writing…'))
-    .join('');
+function scenarioStrip(s) {
+  return `<span class="scenario-strip__emoji">${s.emoji}</span>
+    <div>
+      <h2>${esc(s.title)}</h2>
+      <p>${esc(s.setup)}</p>
+    </div>
+    <ul class="scenario-strip__stakes">${s.stakes.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`;
 }
 
-function updatePitchCount() {
-  $('pitch-count').textContent = `${$('input-pitch').value.length} / 900`;
+function renderPitch() {
+  const { room, players, you } = state;
+  $('pitch-scenario').innerHTML = scenarioStrip(room.scenario);
+
+  $('mvp-grid').innerHTML = you.roster.map((c) => `
+    <button class="mvp-card${you.mvpId === c.id ? ' is-picked' : ''}" data-mvp="${c.id}" ${you.pitchSubmitted ? 'disabled' : ''}>
+      <span class="mvp-card__emoji">${c.emoji}</span>
+      <span class="mvp-card__name">${esc(c.name)}</span>
+      <span class="mvp-card__role">${esc(c.role)}</span>
+      <span class="mvp-card__star">★</span>
+    </button>`).join('');
+
+  const box = $('input-line');
+  if (pitchRoundLoaded !== room.round) {
+    box.value = you.line || '';
+    pitchRoundLoaded = room.round;
+  }
+  box.disabled = you.pitchSubmitted;
+  $('btn-pitch').disabled = you.pitchSubmitted || !you.mvpId;
+  $('btn-pitch').textContent = you.pitchSubmitted ? 'Ready ✓' : 'Ready';
+
+  $('pitch-status').innerHTML = players
+    .map((p) => playerRow(p, p.pitchSubmitted ? '✓' : '…'))
+    .join('');
 }
 
 /* ------------------------------------------------------------------ vote */
 
+function crewChips(player) {
+  return player.roster.map((c) => {
+    const isMvp = c.id === player.mvpId;
+    return `<span class="crew-chip${isMvp ? ' is-mvp' : ''}">${isMvp ? '★ ' : ''}${c.emoji} <b>${esc(c.name)}</b></span>`;
+  }).join('');
+}
+
 function renderVote() {
   const { room, players, you } = state;
-  $('vote-scenario-line').textContent = `${room.scenario.emoji} ${room.scenario.title} — ${room.scenario.setup}`;
+  $('vote-scenario').innerHTML = scenarioStrip(room.scenario);
 
   $('vote-list').innerHTML = players.map((p) => {
     const isSelf = p.id === you.id;
@@ -334,13 +340,11 @@ function renderVote() {
         <h4>${esc(p.name)}${isSelf ? ' <span class="muted small">(you)</span>' : ''}</h4>
         <span class="muted small">${p.budget} left</span>
       </div>
-      <div class="vote-card__crew">
-        ${p.roster.map((c) => `<span class="crew-chip">${c.emoji} <b>${esc(c.name)}</b></span>`).join('')}
-      </div>
-      <p class="vote-card__pitch${p.pitch ? '' : ' is-empty'}">${p.pitch ? esc(p.pitch) : 'Said nothing. Bold.'}</p>
+      <div class="vote-card__crew">${crewChips(p)}</div>
+      ${p.line ? `<p class="vote-card__line">“${esc(p.line)}”</p>` : ''}
       ${isSelf
-        ? '<span class="muted small">You cannot vote for yourself.</span>'
-        : `<button class="btn ${picked ? 'btn--primary' : ''}" data-vote="${p.id}">${picked ? 'Your vote ✓' : 'Vote for this crew'}</button>`}
+        ? '<span class="muted small">Your crew.</span>'
+        : `<button class="btn ${picked ? 'btn--primary' : ''}" data-vote="${p.id}">${picked ? 'Voted ✓' : 'Vote'}</button>`}
     </article>`;
   }).join('');
 }
@@ -363,14 +367,13 @@ function renderResults() {
   $('results-list').innerHTML = r.scored.map((s, i) => {
     const p = byId.get(s.id) || {};
     const won = r.winnerIds.includes(s.id);
-    const crew = (p.roster || []).map((c) => `<span class="crew-chip">${c.emoji} <b>${esc(c.name)}</b></span>`).join('');
     return `<div class="result-row${won ? ' is-winner' : ''}">
       <div class="result-row__rank">${i + 1}</div>
       <div>
         <div class="result-row__name">${esc(s.name)}</div>
-        <div class="result-row__sub">${s.votes} vote${s.votes === 1 ? '' : 's'} · spent ${s.spent} · ${s.leftover} left over</div>
-        <div class="vote-card__crew" style="margin-top:.45rem">${crew}</div>
-        <p class="result-row__pitch${p.pitch ? '' : ' is-empty'}">${p.pitch ? esc(p.pitch) : 'Declined to explain themselves.'}</p>
+        <div class="result-row__sub">${s.votes} vote${s.votes === 1 ? '' : 's'} · spent ${s.spent}</div>
+        <div class="vote-card__crew" style="margin-top:.45rem">${p.roster ? crewChips(p) : ''}</div>
+        ${p.line ? `<p class="result-row__pitch">“${esc(p.line)}”</p>` : ''}
       </div>
       <div class="result-row__score">
         <strong>+${s.points}</strong>
@@ -472,15 +475,19 @@ $('form-bid').addEventListener('submit', (e) => {
   $('input-bid').value = '';
 });
 
-let draftTimer = null;
-$('input-pitch').addEventListener('input', () => {
-  updatePitchCount();
-  clearTimeout(draftTimer);
-  draftTimer = setTimeout(() => send({ type: 'pitchDraft', text: $('input-pitch').value }), 700);
+$('mvp-grid').addEventListener('click', (e) => {
+  const card = e.target.closest('[data-mvp]');
+  if (card) send({ type: 'mvp', mvpId: card.dataset.mvp });
 });
 
 $('btn-pitch').addEventListener('click', () => {
-  send({ type: 'pitch', text: $('input-pitch').value });
+  send({ type: 'pitch', mvpId: state.you.mvpId, line: $('input-line').value });
+});
+
+$('input-line').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && state && state.you.mvpId && !state.you.pitchSubmitted) {
+    send({ type: 'pitch', mvpId: state.you.mvpId, line: $('input-line').value });
+  }
 });
 
 $('vote-list').addEventListener('click', (e) => {
