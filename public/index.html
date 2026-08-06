@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Blind Scenario Auction</title>
+<meta name="description" content="Draft five people blind. Find out what you need them for afterwards." />
+<link rel="stylesheet" href="/styles.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>" />
+</head>
+<body>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
+
+<!-- ============================================================ HOME -->
+<section id="view-home" class="view view--home">
+  <div class="home-card">
+    <h1 class="logo">Blind Scenario<span>Auction</span></h1>
+    <p class="tagline">
+      Draft five people. Spend every credit. <em>Then</em> find out what you need them for.
+    </p>
+
+    <label class="field">
+      <span>Your name</span>
+      <input id="input-name" maxlength="18" placeholder="e.g. Jaineel" autocomplete="nickname" />
+    </label>
+
+    <button id="btn-create" class="btn btn--primary btn--big">Create a room</button>
+
+    <div class="divider"><span>or</span></div>
+
+    <form id="form-join" class="join-row">
+      <input id="input-code" maxlength="6" placeholder="ROOM CODE" autocomplete="off" spellcheck="false" />
+      <button class="btn" type="submit">Join</button>
+    </form>
+
+    <details class="rules">
+      <summary>How it plays</summary>
+      <ol>
+        <li><b>The auction.</b> People come up one at a time — a chess grandmaster, a Bollywood villain, a smokejumper. You bid real credits. Nobody knows what the game is yet.</li>
+        <li><b>The reveal.</b> Once every roster is full, the scenario drops. Zombie outbreak. IPO. Mars transit. Murder trial.</li>
+        <li><b>The pitch.</b> You get a few minutes to explain why your five are, in fact, perfect for this.</li>
+        <li><b>The vote.</b> Everyone votes for the best roster — not their own. Most votes takes the round.</li>
+      </ol>
+    </details>
+  </div>
+  <footer class="home-foot">Best with 3–8 players, one device each.</footer>
+</section>
+
+<!-- ============================================================ GAME -->
+<section id="view-game" class="view hidden">
+  <header class="topbar">
+    <div class="topbar__left">
+      <button id="btn-roomcode" class="roomcode" title="Copy invite link">
+        <span class="roomcode__label">ROOM</span>
+        <span id="room-code" class="roomcode__value">----</span>
+      </button>
+      <span id="phase-pill" class="pill">Lobby</span>
+      <span id="round-pill" class="pill pill--ghost hidden">Round 1</span>
+    </div>
+    <div class="topbar__right">
+      <div id="clock" class="clock hidden"><span id="clock-value">0</span></div>
+      <button id="btn-chat-toggle" class="btn btn--icon" title="Chat">💬<span id="chat-badge" class="badge hidden"></span></button>
+      <button id="btn-leave" class="btn btn--icon btn--quiet" title="Leave room">⎋</button>
+    </div>
+  </header>
+
+  <main class="stage">
+    <!-- ------------------------------------------------------- LOBBY -->
+    <div id="panel-lobby" class="panel hidden">
+      <div class="panel__head">
+        <h2>Lobby</h2>
+        <p class="muted">Share the code. Bidding starts when the host says so.</p>
+      </div>
+
+      <div class="lobby-grid">
+        <div class="card">
+          <h3>Players <span id="lobby-count" class="muted"></span></h3>
+          <ul id="lobby-players" class="player-list"></ul>
+        </div>
+
+        <div class="card">
+          <h3>Setup</h3>
+          <div id="settings" class="settings">
+            <label class="field field--row"><span>Budget</span><input type="number" data-setting="budget" min="20" max="500" step="5" /></label>
+            <label class="field field--row"><span>Roster size</span><input type="number" data-setting="rosterSize" min="3" max="7" /></label>
+            <label class="field field--row"><span>Bid clock (s)</span><input type="number" data-setting="bidSeconds" min="5" max="30" /></label>
+            <label class="field field--row"><span>Opening clock (s)</span><input type="number" data-setting="openSeconds" min="6" max="40" /></label>
+            <label class="field field--row"><span>Pitch time (s)</span><input type="number" data-setting="pitchSeconds" min="30" max="600" step="10" /></label>
+            <label class="field field--row"><span>Vote time (s)</span><input type="number" data-setting="voteSeconds" min="20" max="300" step="5" /></label>
+          </div>
+          <p id="settings-note" class="muted small">Only the host can change these.</p>
+          <button id="btn-start" class="btn btn--primary btn--big">Open the bidding</button>
+          <p id="start-hint" class="muted small"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ----------------------------------------------------- AUCTION -->
+    <div id="panel-auction" class="panel hidden">
+      <div class="auction">
+        <div class="lot-column">
+          <div class="lot-meta">
+            <span id="lot-counter" class="muted small"></span>
+            <span id="lot-status" class="lot-status"></span>
+          </div>
+
+          <article id="lot-card" class="lot-card">
+            <div class="lot-card__emoji" id="lot-emoji">?</div>
+            <div class="lot-card__body">
+              <span id="lot-tag" class="tag"></span>
+              <h2 id="lot-name">Waiting…</h2>
+              <p id="lot-blurb" class="lot-card__blurb"></p>
+              <ul id="lot-traits" class="traits"></ul>
+            </div>
+          </article>
+
+          <div class="bidbar">
+            <div class="bidbar__current">
+              <span class="muted small">Current bid</span>
+              <strong id="current-bid">—</strong>
+              <span id="current-bidder" class="muted small"></span>
+            </div>
+            <div class="bidbar__controls">
+              <div class="quickbids">
+                <button class="btn btn--bid" data-bid-step="1">+1</button>
+                <button class="btn btn--bid" data-bid-step="3">+3</button>
+                <button class="btn btn--bid" data-bid-step="5">+5</button>
+                <button class="btn btn--bid" data-bid-step="10">+10</button>
+              </div>
+              <form id="form-bid" class="custom-bid">
+                <input id="input-bid" type="number" inputmode="numeric" min="1" placeholder="amount" />
+                <button class="btn btn--primary" type="submit">Bid</button>
+              </form>
+            </div>
+            <p id="bid-hint" class="muted small"></p>
+          </div>
+        </div>
+
+        <aside class="auction-side">
+          <div class="card">
+            <h3>Your roster</h3>
+            <div class="wallet">
+              <div><span class="muted small">Credits</span><strong id="my-budget">0</strong></div>
+              <div><span class="muted small">Max bid</span><strong id="my-maxbid">0</strong></div>
+            </div>
+            <ul id="my-roster" class="roster-list"></ul>
+          </div>
+
+          <div class="card">
+            <h3>Table</h3>
+            <ul id="auction-players" class="player-list player-list--compact"></ul>
+          </div>
+
+          <div class="card">
+            <h3>Just sold</h3>
+            <ul id="sold-log" class="sold-log"></ul>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- ------------------------------------------------------ REVEAL -->
+    <div id="panel-reveal" class="panel hidden">
+      <div class="reveal">
+        <p class="reveal__kicker">The money is gone. The envelope is open.</p>
+        <div class="reveal__emoji" id="reveal-emoji">❓</div>
+        <h2 id="reveal-title" class="reveal__title">…</h2>
+        <p id="reveal-setup" class="reveal__setup"></p>
+        <ul id="reveal-stakes" class="stakes"></ul>
+      </div>
+    </div>
+
+    <!-- ------------------------------------------------------- PITCH -->
+    <div id="panel-pitch" class="panel hidden">
+      <div class="pitch-grid">
+        <div class="card scenario-card" id="pitch-scenario"></div>
+        <div class="card">
+          <h3>Your five</h3>
+          <ul id="pitch-roster" class="roster-list roster-list--rich"></ul>
+        </div>
+        <div class="card pitch-write">
+          <h3>Make the case</h3>
+          <p class="muted small">Why is this exactly the crew you would have picked anyway? Sell it.</p>
+          <textarea id="input-pitch" maxlength="900" rows="8" placeholder="The chef is the only one here who can feed forty people from a burned-out supermarket, and frankly the shouting is a feature…"></textarea>
+          <div class="pitch-write__foot">
+            <span id="pitch-count" class="muted small">0 / 900</span>
+            <button id="btn-pitch" class="btn btn--primary">Lock it in</button>
+          </div>
+          <ul id="pitch-status" class="player-list player-list--compact"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- -------------------------------------------------------- VOTE -->
+    <div id="panel-vote" class="panel hidden">
+      <div class="panel__head">
+        <h2>Read them all. Pick one.</h2>
+        <p class="muted" id="vote-scenario-line"></p>
+      </div>
+      <div id="vote-list" class="vote-list"></div>
+    </div>
+
+    <!-- ----------------------------------------------------- RESULTS -->
+    <div id="panel-results" class="panel hidden">
+      <div class="panel__head">
+        <h2 id="results-headline">Results</h2>
+        <p class="muted" id="results-sub"></p>
+      </div>
+      <div id="results-list" class="results-list"></div>
+      <div class="results-actions">
+        <button id="btn-next-round" class="btn btn--primary btn--big">Next round</button>
+        <button id="btn-to-lobby" class="btn">Back to lobby</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- --------------------------------------------------------- CHAT -->
+  <aside id="chat" class="chat hidden">
+    <header class="chat__head">
+      <h3>Table talk</h3>
+      <button id="btn-chat-close" class="btn btn--icon btn--quiet">✕</button>
+    </header>
+    <ul id="chat-log" class="chat__log"></ul>
+    <form id="form-chat" class="chat__form">
+      <input id="input-chat" maxlength="240" placeholder="Heckle responsibly…" autocomplete="off" />
+      <button class="btn btn--primary" type="submit">Send</button>
+    </form>
+  </aside>
+
+  <div id="host-tools" class="host-tools hidden">
+    <button id="btn-advance" class="btn btn--quiet btn--small">Skip ahead ▸</button>
+  </div>
+</section>
+
+<script src="/app.js"></script>
+</body>
+</html>

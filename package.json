@@ -1,0 +1,22 @@
+{
+  "name": "blind-scenario-auction",
+  "version": "1.0.0",
+  "description": "A multiplayer party game: draft five people blind, then find out what you need them for.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node test/game.test.js",
+    "test:e2e": "node test/server.test.js",
+    "test:all": "node test/game.test.js && node test/server.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  },
+  "license": "MIT",
+  "private": true
+}
