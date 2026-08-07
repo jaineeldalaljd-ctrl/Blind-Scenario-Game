@@ -1,17 +1,39 @@
 <title>Blind Scenario Auction</title>
+<!-- Needed when this file is opened straight from disk, where nothing else
+     supplies a viewport and phones would fall back to a 980px desktop layout. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
 <style>
-/* Inherits the app's design system: a dark auction room lit gold. Deliberately
-   single-theme -- the room is the point -- so tokens are pinned rather than
-   following the viewer's light/dark preference. */
+/* ============================================================== tokens ===
+   The saleroom: a cream catalogue card lying on a green baize table, lit by
+   brass. Paper is reserved for the lot itself -- everything else is quiet dark
+   furniture around it. Committed single-theme; the room is the design. */
 :root {
-  --ink: #0d0f14; --ink-2: #141821; --ink-3: #1b2130; --line: #262d3d;
-  --text: #e8eaf0; --muted: #8b93a7;
-  --gold: #e6b34a; --gold-soft: #f2d597;
-  --red: #e05656; --green: #4fbf83;
-  --radius: 14px; --radius-sm: 9px;
-  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --baize:      #0E1A16;
+  --baize-lift: #14231E;
+  --baize-high: #1A2C25;
+  --rule:       #22362F;
+  --rule-soft:  #1B2C25;
+
+  --paper:      #F3ECDE;
+  --paper-deep: #E4D9C2;
+  --paper-ink:  #1B1712;
+  --paper-soft: #6B6153;
+
+  --brass:      #C8963E;
+  --brass-lit:  #E9BC63;
+  --brass-dim:  #8A6B31;
+
+  --bone:       #E9E4D7;
+  --sage:       #8FA097;
+  --oxblood:    #A8341F;
+  --moss:       #6FA07E;
+
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+
+  --r: 3px;
   color-scheme: dark;
 }
 
@@ -20,290 +42,473 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(1100px 600px at 50% -10%, #1c2434 0%, transparent 60%) var(--ink);
-  color: var(--text);
   font-family: var(--sans);
+  color: var(--bone);
+  background:
+    radial-gradient(1200px 700px at 50% -20%, #17322A 0%, transparent 62%),
+    radial-gradient(900px 900px at 110% 110%, #10241D 0%, transparent 55%),
+    var(--baize);
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4 { margin: 0; line-height: 1.15; text-wrap: balance; }
+/* Baize weave. One repeating gradient, cheap, and it stops the ground reading
+   as flat #000-adjacent nothing. */
+body::before {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255,255,255,.014) 0 2px, transparent 2px 4px),
+    repeating-linear-gradient(-45deg, rgba(0,0,0,.05) 0 2px, transparent 2px 4px);
+}
+body > * { position: relative; z-index: 1; }
+
+h1, h2, h3, h4 { margin: 0; line-height: 1.12; text-wrap: balance; }
 p { margin: 0; }
 ul, ol { margin: 0; padding: 0; list-style: none; }
 .hidden { display: none !important; }
-.muted { color: var(--muted); }
+.muted { color: var(--sage); }
 .small { font-size: .8rem; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* Small-caps label, used for every structural label in the room. */
+.label {
+  font-size: .64rem; letter-spacing: .2em; text-transform: uppercase;
+  color: var(--sage); font-weight: 600;
+}
 
 button { font: inherit; cursor: pointer; }
-:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--brass-lit); outline-offset: 2px; }
 
+/* =============================================================== buttons */
 .btn {
-  border: 1px solid var(--line); background: var(--ink-3); color: var(--text);
-  font-weight: 600; padding: .6rem 1rem; border-radius: var(--radius-sm);
-  transition: transform .08s ease, border-color .15s ease, background .15s ease, opacity .15s ease;
+  border: 1px solid var(--rule);
+  background: linear-gradient(180deg, var(--baize-high), var(--baize-lift));
+  color: var(--bone);
+  font-weight: 600; padding: .6rem 1.1rem; border-radius: var(--r);
+  transition: transform .08s ease, border-color .15s ease, background .15s ease, color .15s ease;
 }
-.btn:hover:not(:disabled) { border-color: #3a4459; background: #222a3a; }
+.btn:hover:not(:disabled) { border-color: var(--brass-dim); color: var(--brass-lit); }
 .btn:active:not(:disabled) { transform: translateY(1px); }
-.btn:disabled { opacity: .38; cursor: not-allowed; }
-.btn--primary {
-  background: linear-gradient(180deg, var(--gold) 0%, #cf9a30 100%);
-  border-color: #b98a2c; color: #241a05;
+.btn:disabled { opacity: .35; cursor: not-allowed; }
+
+.btn--brass {
+  background: linear-gradient(180deg, var(--brass-lit) 0%, var(--brass) 55%, #A97C2C 100%);
+  border-color: #7C5D24; color: #241905;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
 }
-.btn--primary:hover:not(:disabled) { background: linear-gradient(180deg, #f0c15c 0%, #d8a338 100%); }
-.btn--big { padding: .85rem 1.4rem; font-size: 1.02rem; }
-.btn--bid { padding: .55rem .5rem; font-variant-numeric: tabular-nums; width: 100%; }
+.btn--brass:hover:not(:disabled) { color: #241905; filter: brightness(1.06); }
+.btn--big { padding: .9rem 1.5rem; font-size: 1.02rem; letter-spacing: .01em; }
 
-/* ------------------------------------------------------------------ start */
-.wrap { max-width: 1120px; margin: 0 auto; padding: 1rem; }
+/* Bid keys: dark keycaps with brass figures, like the board behind an auctioneer. */
+.key {
+  border: 1px solid var(--rule);
+  background: linear-gradient(180deg, #1B2E27, #122019);
+  color: var(--brass-lit);
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: 1.05rem; font-weight: 600;
+  padding: .62rem .3rem; border-radius: var(--r); width: 100%;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 1px 0 rgba(0,0,0,.4);
+  transition: transform .08s ease, border-color .15s ease, background .15s ease;
+}
+.key:hover:not(:disabled) { border-color: var(--brass); background: linear-gradient(180deg, #24392F, #16261F); }
+.key:active:not(:disabled) { transform: translateY(1px); }
+.key:disabled { opacity: .3; cursor: not-allowed; }
 
+/* ================================================================= start */
 .start { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem; }
 .start__card {
-  width: min(520px, 100%);
-  background: linear-gradient(180deg, var(--ink-2) 0%, #10141c 100%);
-  border: 1px solid var(--line); border-radius: var(--radius);
-  box-shadow: 0 18px 44px rgba(0,0,0,.45);
-  padding: 2rem; display: grid; gap: 1.1rem;
+  width: min(560px, 100%);
+  background: linear-gradient(180deg, var(--baize-lift) 0%, #0F1D18 100%);
+  border: 1px solid var(--rule);
+  border-radius: var(--r);
+  box-shadow: 0 30px 70px rgba(0,0,0,.5);
+  padding: 2.4rem 2.2rem;
+  display: grid; gap: 1.3rem;
 }
-.start__card h1 { font-family: var(--serif); font-size: 2.3rem; letter-spacing: -.01em; }
-.start__card h1 span { display: block; color: var(--gold); }
-.lede { color: var(--muted); line-height: 1.6; }
-.lede em { color: var(--gold-soft); font-style: italic; }
+.wordmark { display: grid; gap: .5rem; }
+.wordmark__rule { height: 1px; background: linear-gradient(90deg, var(--brass), transparent); }
+.wordmark h1 {
+  font-family: var(--serif); font-weight: 400;
+  font-size: clamp(2.2rem, 7vw, 2.9rem); letter-spacing: -.015em;
+}
+.wordmark h1 em { display: block; font-style: italic; color: var(--brass-lit); }
 
-.steps { display: grid; gap: .55rem; border-top: 1px solid var(--line); padding-top: 1rem; }
-.steps li { display: flex; gap: .7rem; align-items: baseline; color: var(--muted); font-size: .9rem; }
-.steps b { color: var(--text); font-weight: 600; }
-.steps i { color: var(--gold); font-style: normal; font-variant-numeric: tabular-nums; }
+.lede { color: var(--sage); line-height: 1.65; font-size: 1rem; }
+.lede b { color: var(--bone); font-weight: 600; }
 
-.rivals { display: grid; gap: .4rem; }
-.rival { display: flex; gap: .6rem; align-items: center; font-size: .88rem; color: var(--muted); }
-.rival b { color: var(--text); font-weight: 600; }
-.rival span { font-size: 1.15rem; }
+/* Numbered because the round genuinely is a sequence: bid, reveal, pitch, vote. */
+.steps { display: grid; gap: .7rem; }
+.steps li { display: grid; grid-template-columns: 1.5rem 1fr; gap: .7rem; align-items: baseline; }
+.steps .n { font-family: var(--mono); font-size: .8rem; color: var(--brass); }
+.steps b { color: var(--bone); font-weight: 600; }
+.steps span { color: var(--sage); font-size: .92rem; line-height: 1.5; }
 
-/* ----------------------------------------------------------------- topbar */
+.rivals { display: grid; gap: .5rem; border-top: 1px solid var(--rule-soft); padding-top: 1.2rem; }
+.rival { display: grid; grid-template-columns: 1.6rem 1fr; gap: .6rem; align-items: baseline; font-size: .9rem; color: var(--sage); }
+.rival b { color: var(--bone); font-weight: 600; }
+.rival i { font-style: normal; font-size: 1.1rem; }
+
+/* ================================================================ topbar */
 .topbar {
-  position: sticky; top: 0; z-index: 20;
+  position: sticky; top: 0; z-index: 30;
   display: flex; align-items: center; justify-content: space-between; gap: .75rem;
-  padding: .6rem .9rem; border-bottom: 1px solid var(--line);
-  background: rgba(13,15,20,.86); backdrop-filter: blur(8px);
+  padding: .55rem 1rem;
+  border-bottom: 1px solid var(--rule);
+  background: rgba(11,21,17,.9); backdrop-filter: blur(10px);
 }
-.topbar__left { display: flex; align-items: center; gap: .5rem; }
-.pill {
-  font-size: .7rem; letter-spacing: .1em; text-transform: uppercase;
-  padding: .28rem .6rem; border-radius: 999px;
-  background: rgba(230,179,74,.14); color: var(--gold-soft);
-  border: 1px solid rgba(230,179,74,.28);
+.topbar__side { display: flex; align-items: center; gap: .6rem; }
+.phase {
+  font-family: var(--serif); font-size: 1.05rem; letter-spacing: .01em; color: var(--brass-lit);
 }
-.pill--ghost { background: transparent; color: var(--muted); border-color: var(--line); }
+.round { font-family: var(--mono); font-size: .72rem; color: var(--sage); letter-spacing: .08em; }
+
 .clock {
-  min-width: 3rem; text-align: center; font-variant-numeric: tabular-nums;
-  font-weight: 800; font-size: 1.15rem; padding: .2rem .55rem;
-  border-radius: var(--radius-sm); background: var(--ink-3); border: 1px solid var(--line);
+  min-width: 3.2rem; text-align: center;
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: 1.2rem; font-weight: 600; color: var(--bone);
+  padding: .15rem .6rem; border-radius: var(--r);
+  border: 1px solid var(--rule); background: #0B1512;
 }
-.clock.is-urgent { color: var(--red); border-color: rgba(224,86,86,.5); }
+.clock.urgent { color: #F0836A; border-color: rgba(168,52,31,.65); background: rgba(168,52,31,.14); }
 
-/* ---------------------------------------------------------------- auction */
-.auction { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 1rem; align-items: start; }
-.lot-col { display: grid; gap: .75rem; }
-.lot-meta { display: flex; justify-content: space-between; align-items: center; }
-.lot-status { font-size: .78rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-.is-sold { color: var(--green); } .is-passed { color: var(--muted); } .is-live { color: var(--gold); }
+.wrap { max-width: 1140px; margin: 0 auto; padding: 1.4rem 1rem 3rem; }
 
-.lot-card {
-  display: grid; grid-template-columns: 112px minmax(0,1fr); gap: 1.1rem;
-  background: linear-gradient(140deg, #1a2130 0%, #12161f 100%);
-  border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 1.25rem; position: relative; overflow: hidden;
-  box-shadow: 0 18px 44px rgba(0,0,0,.45);
-  animation: lotIn .35s cubic-bezier(.2,.8,.3,1);
+/* =============================================================== auction */
+.auction { display: grid; grid-template-columns: minmax(0,1fr) 296px; gap: 1.4rem; align-items: start; }
+.lot-col { display: grid; gap: 1rem; }
+
+/* --- the catalogue card ------------------------------------------------- */
+.lot {
+  position: relative;
+  background:
+    radial-gradient(120% 90% at 80% 0%, #FBF6EC 0%, transparent 55%),
+    linear-gradient(168deg, var(--paper) 0%, var(--paper-deep) 100%);
+  color: var(--paper-ink);
+  border-radius: 2px;
+  padding: 1.6rem 1.7rem 1.5rem;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,.5) inset,
+    0 26px 50px rgba(0,0,0,.5),
+    0 2px 0 rgba(0,0,0,.25);
+  display: grid; grid-template-columns: 148px minmax(0,1fr); gap: 1.5rem;
+  align-items: center; min-height: 232px;
+  animation: deal .42s cubic-bezier(.16,.9,.3,1);
 }
-@keyframes lotIn { from { opacity: 0; transform: translateY(10px); } }
-.lot-card::after {
-  content: ''; position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(420px 180px at 12% 0%, rgba(230,179,74,.11), transparent 70%);
+@keyframes deal {
+  from { opacity: 0; transform: translateY(14px) rotate(-.7deg); }
+  to   { opacity: 1; transform: none; }
 }
-.lot-card.sold { border-color: rgba(79,191,131,.5); }
-.lot-card.passed { opacity: .6; }
-.lot-card__emoji {
-  font-size: 4rem; line-height: 1; display: grid; place-items: center;
-  background: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); aspect-ratio: 1;
+/* Paper grain. */
+.lot::before {
+  content: ''; position: absolute; inset: 0; border-radius: 2px; pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  opacity: .05; mix-blend-mode: multiply;
 }
-.lot-card__body { display: grid; gap: .5rem; align-content: start; min-width: 0; }
-.lot-card__body h2 { font-family: var(--serif); font-size: 2.1rem; }
-.lot-card__role { color: var(--gold-soft); font-size: .95rem; margin-top: -.2rem; }
-.tag {
-  justify-self: start; font-size: .64rem; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--gold); background: rgba(230,179,74,.12);
-  border: 1px solid rgba(230,179,74,.3); padding: .18rem .5rem; border-radius: 999px;
+.lot.is-passed { filter: saturate(.55) brightness(.86); }
+
+.lot__no {
+  position: absolute; top: 1rem; right: 1.2rem;
+  font-family: var(--mono); font-size: .7rem; letter-spacing: .14em;
+  color: var(--paper-soft);
 }
-.traits { display: flex; flex-wrap: wrap; gap: .4rem; }
+
+/* Catalogue plate: the portrait sits in a ruled box, like a printed photo. */
+.plate {
+  aspect-ratio: 1; display: grid; place-items: center;
+  font-size: 3.6rem; line-height: 1;
+  background: linear-gradient(160deg, #FFFBF2, #E8DDC7);
+  border: 1px solid rgba(27,23,18,.16);
+  box-shadow: inset 0 0 0 4px rgba(255,255,255,.55), 0 1px 2px rgba(0,0,0,.12);
+}
+
+.lot__body { display: grid; gap: .5rem; align-content: start; min-width: 0; }
+.lot__cat {
+  font-size: .62rem; letter-spacing: .22em; text-transform: uppercase;
+  color: var(--brass-dim); font-weight: 700;
+}
+.lot__name {
+  font-family: var(--serif); font-weight: 400;
+  font-size: clamp(1.7rem, 3.6vw, 2.5rem); letter-spacing: -.015em; line-height: 1.05;
+}
+.lot__role { font-family: var(--serif); font-style: italic; font-size: 1.05rem; color: var(--paper-soft); }
+.lot__rule { height: 1px; background: rgba(27,23,18,.18); margin: .35rem 0 .1rem; }
+.traits { display: flex; flex-wrap: wrap; gap: .3rem .5rem; }
 .traits li {
-  font-size: .8rem; background: var(--ink-3); border: 1px solid var(--line);
-  padding: .28rem .6rem; border-radius: 999px;
+  font-size: .78rem; color: var(--paper-ink);
+  border: 1px solid rgba(27,23,18,.22);
+  padding: .2rem .55rem; border-radius: 999px;
+  background: rgba(255,255,255,.4);
 }
 
-.bidbar { background: var(--ink-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; display: grid; gap: .7rem; }
-.bidbar__now { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; }
-.bidbar__now strong { font-size: 2rem; font-variant-numeric: tabular-nums; color: var(--gold); line-height: 1; }
-.quickbids { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: .4rem; }
-
-.card { background: var(--ink-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; display: grid; gap: .7rem; }
-.card h3 { font-size: .74rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-.side { display: grid; gap: .75rem; }
-
-.wallet { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
-.wallet div { background: var(--ink-3); border-radius: var(--radius-sm); padding: .5rem .65rem; display: grid; gap: .1rem; }
-.wallet strong { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
-
-.rows { display: grid; gap: .4rem; grid-template-columns: minmax(0,1fr); }
-.row {
-  display: flex; align-items: center; gap: .55rem; min-width: 0;
-  background: var(--ink-3); border: 1px solid transparent;
-  border-radius: var(--radius-sm); padding: .45rem .6rem; font-size: .88rem;
+/* The stamp. Reserved oxblood, and the only thing on screen that shouts. */
+/* Offset down-right so it lands like a stamp on a docket and leaves the
+   name legible -- the point is the moment, not obscuring the lot. */
+.stamp {
+  position: absolute; top: 66%; left: 68%;
+  font-family: var(--serif); font-size: clamp(2.4rem, 7vw, 3.6rem);
+  letter-spacing: .12em; text-transform: uppercase; font-weight: 700;
+  color: var(--oxblood);
+  border: 4px double var(--oxblood);
+  padding: .1em .3em; border-radius: 4px;
+  opacity: .82; pointer-events: none;
+  transform: translate(-50%, -50%) rotate(-11deg);
+  animation: slam .28s cubic-bezier(.2,1.4,.4,1);
 }
-.row.you { border-color: rgba(230,179,74,.4); }
-.row.high { border-color: var(--gold); background: rgba(230,179,74,.1); }
-.row__name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row__meta { color: var(--muted); font-size: .8rem; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
-.row__price { color: var(--gold); font-size: .82rem; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
-.row__price.free { color: var(--muted); }
-.row--empty { opacity: .4; font-style: italic; }
+.stamp--passed { color: var(--paper-soft); border-color: var(--paper-soft); opacity: .5; font-size: clamp(1.4rem, 4vw, 2rem); }
+@keyframes slam {
+  from { opacity: 0; transform: translate(-50%,-50%) rotate(-11deg) scale(2.4); }
+  to   { opacity: .82; transform: translate(-50%,-50%) rotate(-11deg) scale(1); }
+}
 
-.log { display: grid; gap: .35rem; font-size: .84rem; }
-.log li { display: flex; gap: .45rem; align-items: center; color: var(--muted); }
-.log b { color: var(--text); font-weight: 600; }
-.log .price { color: var(--gold); margin-left: auto; font-variant-numeric: tabular-nums; }
+.lot-meta { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
+.lot-meta .status { font-size: .72rem; letter-spacing: .18em; text-transform: uppercase; font-weight: 700; color: var(--brass); }
+.status.sold { color: var(--moss); }
+.status.passed { color: var(--sage); }
 
-/* ----------------------------------------------------------------- reveal */
-.reveal { max-width: 680px; margin: 6vh auto 0; text-align: center; display: grid; gap: 1rem; justify-items: center; animation: revealIn .6s cubic-bezier(.2,.8,.3,1); }
-@keyframes revealIn { from { opacity: 0; transform: translateY(18px); } }
-.reveal__kicker { color: var(--muted); letter-spacing: .1em; text-transform: uppercase; font-size: .74rem; }
-.reveal__emoji { font-size: 4.5rem; line-height: 1; }
-.reveal h2 { font-family: var(--serif); font-size: clamp(2.2rem, 6vw, 3.2rem); color: var(--gold); }
-.reveal p { line-height: 1.6; font-size: 1.05rem; max-width: 54ch; }
+/* --- the board ---------------------------------------------------------- */
+.board {
+  border: 1px solid var(--rule); border-radius: var(--r);
+  background: linear-gradient(180deg, #0C1815, #101E19);
+  padding: 1.1rem 1.2rem; display: grid; gap: .9rem;
+}
+.board__row { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; margin-top: .3rem; }
+.board__figure {
+  font-family: var(--mono); font-variant-numeric: tabular-nums;
+  font-size: 2.6rem; font-weight: 600; line-height: 1; color: var(--brass-lit);
+  text-shadow: 0 0 26px rgba(233,188,99,.28);
+}
+/* With no bid yet the figure is a placeholder, not a number to read. */
+.board__figure.empty { color: var(--sage); opacity: .45; text-shadow: none; font-size: 2rem; }
+.board__holder { color: var(--sage); font-size: .88rem; }
+.board__holder b { color: var(--bone); font-weight: 600; }
+.keys { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: .45rem; }
+.hint { color: var(--sage); font-size: .82rem; line-height: 1.45; }
+
+/* --- side furniture ----------------------------------------------------- */
+.side { display: grid; gap: 1rem; }
+.panel { border: 1px solid var(--rule); border-radius: var(--r); background: var(--baize-lift); padding: .95rem 1rem; display: grid; gap: .75rem; }
+.panel > .label { border-bottom: 1px solid var(--rule-soft); padding-bottom: .55rem; }
+
+.purse { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.purse div { background: #0D1815; border: 1px solid var(--rule-soft); border-radius: var(--r); padding: .5rem .65rem; display: grid; gap: .1rem; }
+.purse strong { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 1.35rem; color: var(--bone); font-weight: 600; }
+
+/* Catalogue-style rows with dotted leaders running to the price. */
+.rows { display: grid; gap: .1rem; }
+.rows li { display: flex; align-items: baseline; gap: .4rem; padding: .38rem .1rem; font-size: .9rem; }
+.rows li + li { border-top: 1px solid var(--rule-soft); }
+.rows .who { display: flex; align-items: baseline; gap: .4rem; min-width: 0; }
+.rows .who span { flex: 0 0 auto; }
+.rows .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.leader { flex: 1; border-bottom: 1px dotted rgba(143,160,151,.4); transform: translateY(-.25em); min-width: .8rem; }
+.amt { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: .84rem; color: var(--brass); flex: 0 0 auto; }
+.amt.free { color: var(--sage); font-family: var(--sans); font-style: italic; }
+.rows li.empty { color: var(--sage); opacity: .5; font-style: italic; }
+.rows li.you .nm { color: var(--brass-lit); font-weight: 600; }
+.rows li.high { background: rgba(200,150,62,.1); box-shadow: inset 2px 0 0 var(--brass); }
+
+.log { display: grid; gap: .1rem; font-size: .84rem; }
+.log li { display: flex; align-items: baseline; gap: .4rem; padding: .32rem .1rem; color: var(--sage); }
+.log li + li { border-top: 1px solid var(--rule-soft); }
+.log b { color: var(--bone); font-weight: 600; }
+
+/* ================================================================ reveal */
+.reveal { max-width: 680px; margin: 5vh auto 0; display: grid; gap: 1.2rem; justify-items: center; text-align: center; }
+.reveal__kicker { animation: fade .5s both; }
+.reveal__seal {
+  width: 74px; height: 74px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 2rem;
+  background: radial-gradient(circle at 35% 30%, #C4442C, #7E2314);
+  box-shadow: 0 10px 26px rgba(0,0,0,.45), inset 0 2px 6px rgba(255,255,255,.28);
+  animation: press .5s .1s both cubic-bezier(.2,1.3,.4,1);
+}
+@keyframes press { from { transform: scale(1.9); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes fade { from { opacity: 0; transform: translateY(8px); } }
+.reveal h2 {
+  font-family: var(--serif); font-weight: 400; font-style: italic;
+  font-size: clamp(2.3rem, 7vw, 3.4rem); color: var(--brass-lit);
+  animation: fade .6s .25s both;
+}
+.reveal__setup { font-family: var(--serif); font-size: 1.15rem; line-height: 1.6; max-width: 46ch; animation: fade .6s .4s both; }
 .chips { display: flex; gap: .4rem; flex-wrap: wrap; justify-content: center; }
+/* The staged entrance belongs to the reveal only -- the same chips appear on
+   the pitch and vote strips, where they must be visible immediately. */
+.reveal .chips { animation: fade .6s .55s both; }
+.strip .chips { justify-content: flex-start; }
 .chips li {
-  font-size: .76rem; color: var(--gold-soft); background: rgba(230,179,74,.1);
-  border: 1px solid rgba(230,179,74,.25); padding: .22rem .55rem; border-radius: 999px;
+  font-size: .76rem; color: var(--brass-lit);
+  border: 1px solid rgba(200,150,62,.35); background: rgba(200,150,62,.09);
+  padding: .24rem .6rem; border-radius: 999px;
 }
+.hairline { width: min(280px, 60%); height: 1px; background: linear-gradient(90deg, transparent, var(--brass-dim), transparent); }
 
-/* ------------------------------------------------------------ pitch/vote */
+/* =========================================================== pitch/vote */
 .strip {
-  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
-  background: var(--ink-2); border: 1px solid var(--line);
-  border-radius: var(--radius); padding: .85rem 1rem; margin-bottom: 1rem;
+  display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap;
+  border: 1px solid var(--rule); border-left: 3px solid var(--brass);
+  border-radius: var(--r); background: var(--baize-lift);
+  padding: .9rem 1.1rem; margin-bottom: 1.4rem;
 }
-.strip > div { flex: 1 1 240px; min-width: 0; }
-.strip__emoji { font-size: 2.2rem; line-height: 1; }
-.strip h2 { font-family: var(--serif); font-size: 1.45rem; color: var(--gold); }
-.strip p { color: var(--muted); font-size: .9rem; line-height: 1.45; margin-top: .15rem; }
+.strip__emoji { font-size: 1.9rem; line-height: 1; }
+.strip > div { flex: 1 1 260px; min-width: 0; }
+.strip h2 { font-family: var(--serif); font-style: italic; font-size: 1.4rem; color: var(--brass-lit); }
+.strip p { color: var(--sage); font-size: .92rem; line-height: 1.5; margin-top: .15rem; }
 
-.prompt { font-size: 1.15rem; font-weight: 700; margin-bottom: .75rem; }
+.prompt { font-family: var(--serif); font-size: 1.45rem; margin-bottom: 1rem; }
+.prompt span { color: var(--sage); font-size: 1rem; font-family: var(--sans); }
 
-.mvp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: .6rem; }
+/* MVP picks: five small catalogue cards, dealt in sequence. */
+.mvp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(154px,1fr)); gap: .7rem; }
 .mvp {
-  position: relative; display: grid; gap: .15rem; justify-items: center; text-align: center;
-  background: var(--ink-2); border: 1px solid var(--line); color: var(--text);
-  border-radius: var(--radius); padding: 1rem .6rem;
-  transition: transform .1s ease, border-color .15s ease, background .15s ease;
+  position: relative; text-align: center;
+  display: grid; gap: .2rem; justify-items: center;
+  background: linear-gradient(170deg, #17282212, #0F1C17);
+  border: 1px solid var(--rule); border-radius: var(--r);
+  color: var(--bone); padding: 1.1rem .7rem 1rem;
+  transition: transform .12s ease, border-color .15s ease, background .15s ease;
+  animation: deal .35s both;
 }
-.mvp:hover:not(:disabled) { border-color: var(--gold-soft); transform: translateY(-2px); }
-.mvp.picked { border-color: var(--gold); background: rgba(230,179,74,.12); }
-.mvp__emoji { font-size: 2.1rem; line-height: 1; margin-bottom: .3rem; }
-.mvp__name { font-weight: 700; font-size: .95rem; line-height: 1.25; }
-.mvp__role { color: var(--muted); font-size: .76rem; line-height: 1.3; }
-.mvp__star { position: absolute; top: .45rem; right: .55rem; color: var(--gold); opacity: 0; }
+.mvp:nth-child(1) { animation-delay: .02s } .mvp:nth-child(2) { animation-delay: .07s }
+.mvp:nth-child(3) { animation-delay: .12s } .mvp:nth-child(4) { animation-delay: .17s }
+.mvp:nth-child(5) { animation-delay: .22s }
+.mvp:hover:not(:disabled) { transform: translateY(-3px); border-color: var(--brass-dim); }
+.mvp__face { font-size: 2rem; line-height: 1; margin-bottom: .35rem; }
+.mvp__name { font-family: var(--serif); font-size: 1.05rem; line-height: 1.2; }
+.mvp__role { color: var(--sage); font-size: .74rem; line-height: 1.3; }
+.mvp.picked {
+  background: linear-gradient(170deg, rgba(200,150,62,.16), rgba(200,150,62,.05));
+  border-color: var(--brass);
+  box-shadow: 0 0 0 1px var(--brass), 0 12px 30px rgba(0,0,0,.35);
+}
+.mvp__star { position: absolute; top: .4rem; right: .55rem; color: var(--brass-lit); opacity: 0; transition: opacity .15s ease; }
 .mvp.picked .mvp__star { opacity: 1; }
 
-.pitch-foot { display: flex; gap: .5rem; margin: .9rem 0; }
+.pitch-foot { display: flex; gap: .5rem; margin: 1.1rem 0; flex-wrap: wrap; }
 .pitch-foot input {
-  flex: 1; font: inherit; color: var(--text); background: var(--ink);
-  border: 1px solid var(--line); border-radius: var(--radius-sm); padding: .6rem .7rem;
+  flex: 1 1 240px; font: inherit; font-family: var(--serif); font-size: 1rem;
+  color: var(--bone); background: #0C1815;
+  border: 1px solid var(--rule); border-radius: var(--r); padding: .7rem .8rem;
+}
+.pitch-foot input::placeholder { color: var(--sage); opacity: .7; font-style: italic; }
+
+/* Always four crews here, so two columns beat an auto-fill that strands one. */
+.votes { display: grid; gap: 1rem; grid-template-columns: 1fr; }
+@media (min-width: 820px) { .votes { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+.vote-card {
+  border: 1px solid var(--rule); border-radius: var(--r);
+  background: var(--baize-lift); padding: 1.1rem;
+  display: grid; gap: .8rem; align-content: start;
+  transition: border-color .15s ease, transform .12s ease;
+}
+.vote-card:hover { border-color: var(--rule); transform: translateY(-2px); }
+.vote-card.picked { border-color: var(--brass); box-shadow: 0 0 0 1px var(--brass); }
+.vote-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
+.vote-card__head h4 { font-family: var(--serif); font-size: 1.25rem; font-weight: 400; }
+.crew { display: grid; gap: .1rem; }
+.crew li { display: flex; align-items: baseline; gap: .4rem; font-size: .86rem; padding: .22rem 0; }
+.crew li + li { border-top: 1px solid var(--rule-soft); }
+.crew .nm { color: var(--sage); }
+.crew li.is-mvp .nm { color: var(--brass-lit); font-weight: 600; }
+.crew li.is-mvp::before { content: '★'; color: var(--brass); font-size: .7rem; }
+.line {
+  font-family: var(--serif); font-style: italic; font-size: 1rem; line-height: 1.5;
+  color: var(--bone); padding-left: .8rem; border-left: 2px solid var(--brass-dim);
 }
 
-.votes { display: grid; gap: .9rem; grid-template-columns: repeat(auto-fill, minmax(300px,1fr)); }
-.vote-card { background: var(--ink-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; display: grid; gap: .7rem; align-content: start; }
-.vote-card.picked { border-color: var(--gold); box-shadow: inset 0 0 0 1px var(--gold); }
-.vote-card__head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
-.vote-card__head h4 { font-size: 1.05rem; }
-.crew { display: flex; flex-wrap: wrap; gap: .35rem; }
-.crew-chip { font-size: .78rem; background: var(--ink-3); border: 1px solid var(--line); padding: .25rem .55rem; border-radius: 999px; color: var(--muted); }
-.crew-chip b { color: var(--text); font-weight: 600; }
-.crew-chip.mvp-chip { border-color: var(--gold); background: rgba(230,179,74,.14); color: var(--gold); }
-.crew-chip.mvp-chip b { color: var(--gold-soft); }
-.line { color: var(--gold-soft); font-style: italic; font-size: .95rem; line-height: 1.5; }
+/* =============================================================== results */
+.res-head { display: grid; gap: .3rem; margin-bottom: 1.4rem; }
+.res-head h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(1.8rem, 5vw, 2.4rem); }
+.res-head h2 b { font-style: italic; font-weight: 400; color: var(--brass-lit); }
 
-/* --------------------------------------------------------------- results */
-.results { display: grid; gap: .6rem; }
+.results { display: grid; gap: .7rem; }
 .result {
-  display: grid; grid-template-columns: 2.2rem minmax(0,1fr) auto; gap: .8rem; align-items: center;
-  background: var(--ink-2); border: 1px solid var(--line); border-radius: var(--radius); padding: .8rem 1rem;
+  display: grid; grid-template-columns: 2.4rem minmax(0,1fr) auto; gap: 1rem; align-items: center;
+  border: 1px solid var(--rule); border-radius: var(--r);
+  background: var(--baize-lift); padding: 1rem 1.2rem;
 }
-.result.win { border-color: var(--gold); background: linear-gradient(90deg, rgba(230,179,74,.12), var(--ink-2) 60%); }
-.result__rank { font-family: var(--serif); font-size: 1.5rem; color: var(--muted); text-align: center; }
-.result.win .result__rank { color: var(--gold); }
-.result__name { font-weight: 700; }
-.result__sub { color: var(--muted); font-size: .82rem; }
+.result.win {
+  border-color: var(--brass);
+  background: linear-gradient(100deg, rgba(200,150,62,.14), var(--baize-lift) 55%);
+}
+.result__rank { font-family: var(--serif); font-size: 1.9rem; color: var(--sage); text-align: center; line-height: 1; }
+.result.win .result__rank { color: var(--brass-lit); }
+.result__name { font-family: var(--serif); font-size: 1.25rem; }
+.result__sub { color: var(--sage); font-size: .8rem; font-family: var(--mono); letter-spacing: .02em; margin-top: .1rem; }
 .result__score { text-align: right; }
-.result__score strong { font-size: 1.3rem; font-variant-numeric: tabular-nums; }
-.actions { display: flex; gap: .6rem; margin-top: 1.2rem; flex-wrap: wrap; }
+.result__score strong { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 1.5rem; color: var(--brass-lit); font-weight: 600; }
+.result .crew { margin-top: .5rem; }
+.actions { display: flex; gap: .7rem; margin-top: 1.6rem; flex-wrap: wrap; }
 
 .footnote {
-  margin: 2rem auto 1rem; max-width: 60ch; text-align: center;
-  color: var(--muted); font-size: .84rem; line-height: 1.6;
+  margin: 2.6rem auto 0; max-width: 58ch; text-align: center;
+  color: var(--sage); font-size: .85rem; line-height: 1.7;
+  border-top: 1px solid var(--rule-soft); padding-top: 1.4rem;
 }
-.footnote code { background: var(--ink-3); padding: .1rem .35rem; border-radius: 4px; color: var(--gold-soft); }
+.footnote code { font-family: var(--mono); color: var(--brass-lit); font-size: .95em; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::after { animation: none !important; transition: none !important; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
-@media (max-width: 900px) { .auction { grid-template-columns: 1fr; } }
+/* ============================================================ responsive */
+@media (max-width: 900px) {
+  .auction { grid-template-columns: 1fr; }
+}
 @media (max-width: 560px) {
-  .wrap { padding: .75rem; }
-  .lot-card { grid-template-columns: 1fr; padding: 1rem; }
-  .lot-card__emoji { aspect-ratio: auto; padding: .5rem; font-size: 2.8rem; }
-  .lot-card__body h2 { font-size: 1.5rem; }
+  .wrap { padding: 1rem .75rem 2.5rem; }
+  .lot { grid-template-columns: 1fr; padding: 1.2rem 1.1rem; gap: 1rem; }
+  .plate { aspect-ratio: auto; padding: .8rem; font-size: 2.6rem; }
+  .lot__no { top: .7rem; right: .8rem; }
+  .board__figure { font-size: 2.1rem; }
   .mvp-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .strip h2 { font-size: 1.2rem; }
-  .start__card { padding: 1.4rem; }
+  .prompt { font-size: 1.2rem; }
+  .start__card { padding: 1.6rem 1.3rem; }
+  .result { grid-template-columns: 1.8rem minmax(0,1fr) auto; gap: .7rem; padding: .85rem .9rem; }
 }
 </style>
 
-<!-- ============================================================== START -->
+<!-- ================================================================ START -->
 <section id="start" class="start">
   <div class="start__card">
-    <h1>Blind Scenario<span>Auction</span></h1>
+    <div class="wordmark">
+      <p class="label">Lots 1–27 · sold as seen</p>
+      <h1>Blind Scenario <em>Auction</em></h1>
+      <div class="wordmark__rule"></div>
+    </div>
+
     <p class="lede">
-      Draft five people at auction. Spend every credit. <em>Then</em> find out what
-      you need them for — outbreak, IPO, Mars transit, murder trial.
+      Draft five people at auction and spend every credit you have.
+      <b>Only then</b> do you learn what you needed them for — an outbreak, an IPO,
+      a Mars transit, a murder trial.
     </p>
 
     <ul class="steps">
-      <li><i>1</i><span><b>Bid.</b> People come up one at a time. Nobody knows the scenario yet.</span></li>
-      <li><i>2</i><span><b>Reveal.</b> The envelope opens once every roster is full.</span></li>
-      <li><i>3</i><span><b>Pitch.</b> Tap the one of your five who wins this.</span></li>
-      <li><i>4</i><span><b>Vote.</b> Best crew takes the round.</span></li>
+      <li><span class="n">01</span><span><b>Bid.</b> Lots come up one at a time. Nobody knows the scenario yet.</span></li>
+      <li><span class="n">02</span><span><b>Reveal.</b> The envelope opens once every roster is full.</span></li>
+      <li><span class="n">03</span><span><b>Pitch.</b> Name the one of your five who wins this.</span></li>
+      <li><span class="n">04</span><span><b>Vote.</b> Best crew takes the round.</span></li>
     </ul>
 
     <div class="rivals">
-      <p class="small muted" style="letter-spacing:.1em;text-transform:uppercase">You are bidding against</p>
-      <div class="rival"><span>🪙</span><div><b>Priya</b> — pays up for a big name, early.</div></div>
-      <div class="rival"><span>🧊</span><div><b>Tomás</b> — sits on his money, waits for scraps.</div></div>
-      <div class="rival"><span>🔥</span><div><b>Nkechi</b> — wants anyone who can survive outdoors.</div></div>
+      <p class="label">In the room with you</p>
+      <div class="rival"><i>🪙</i><div><b>Priya</b> — pays up for a big name, early.</div></div>
+      <div class="rival"><i>🧊</i><div><b>Tomás</b> — sits on his money, waits for scraps.</div></div>
+      <div class="rival"><i>🔥</i><div><b>Nkechi</b> — wants anyone who survives outdoors.</div></div>
     </div>
 
-    <button id="btn-start" class="btn btn--primary btn--big">Open the bidding</button>
-    <p class="small muted">100 credits each · five slots · about five minutes.</p>
+    <button id="btn-start" class="btn btn--brass btn--big">Open the bidding</button>
+    <p class="label" style="text-align:center">100 credits · five slots · about five minutes</p>
   </div>
 </section>
 
-<!-- =============================================================== GAME -->
+<!-- ================================================================= GAME -->
 <section id="game" class="hidden">
   <header class="topbar">
-    <div class="topbar__left">
-      <span id="phase-pill" class="pill">Auction</span>
-      <span id="round-pill" class="pill pill--ghost">Round 1</span>
+    <div class="topbar__side">
+      <span id="phase-name" class="phase">The auction</span>
+      <span id="round-no" class="round">ROUND 1</span>
     </div>
-    <div class="topbar__left">
+    <div class="topbar__side">
       <div id="clock" class="clock">0</div>
       <button id="btn-skip" class="btn small">Skip ▸</button>
     </div>
@@ -315,49 +520,55 @@ button { font: inherit; cursor: pointer; }
       <div class="auction">
         <div class="lot-col">
           <div class="lot-meta">
-            <span id="lot-count" class="muted small"></span>
-            <span id="lot-status" class="lot-status is-live">On the block</span>
+            <span id="lot-count" class="label"></span>
+            <span id="lot-status" class="status">On the block</span>
           </div>
-          <article id="lot-card" class="lot-card">
-            <div class="lot-card__emoji" id="lot-emoji">?</div>
-            <div class="lot-card__body">
-              <span id="lot-tag" class="tag"></span>
-              <h2 id="lot-name"></h2>
-              <p id="lot-role" class="lot-card__role"></p>
+
+          <article id="lot-card" class="lot">
+            <span id="lot-no" class="lot__no"></span>
+            <div class="plate" id="lot-face">?</div>
+            <div class="lot__body">
+              <span id="lot-cat" class="lot__cat"></span>
+              <h2 id="lot-name" class="lot__name"></h2>
+              <p id="lot-role" class="lot__role"></p>
+              <div class="lot__rule"></div>
               <ul id="lot-traits" class="traits"></ul>
             </div>
           </article>
-          <div class="bidbar">
-            <div class="bidbar__now">
-              <span class="muted small">Current bid</span>
-              <strong id="bid-now">—</strong>
-              <span id="bid-holder" class="muted small">no bids yet</span>
+
+          <div class="board">
+            <div>
+              <span class="label">Standing bid</span>
+              <div class="board__row">
+                <strong id="bid-now" class="board__figure">—</strong>
+                <span id="bid-holder" class="board__holder">no bids yet</span>
+              </div>
             </div>
-            <div class="quickbids">
-              <button class="btn btn--bid" data-step="1"></button>
-              <button class="btn btn--bid" data-step="3"></button>
-              <button class="btn btn--bid" data-step="5"></button>
-              <button class="btn btn--bid" data-step="10"></button>
+            <div class="keys">
+              <button class="key" data-step="1"></button>
+              <button class="key" data-step="3"></button>
+              <button class="key" data-step="5"></button>
+              <button class="key" data-step="10"></button>
             </div>
-            <p id="bid-hint" class="muted small"></p>
+            <p id="bid-hint" class="hint"></p>
           </div>
         </div>
 
         <aside class="side">
-          <div class="card">
-            <h3>Your roster</h3>
-            <div class="wallet">
-              <div><span class="muted small">Credits</span><strong id="my-budget">100</strong></div>
-              <div><span class="muted small">Max bid</span><strong id="my-max">96</strong></div>
+          <div class="panel">
+            <span class="label">Your roster</span>
+            <div class="purse">
+              <div><span class="label">Credits</span><strong id="my-budget">100</strong></div>
+              <div><span class="label">Max bid</span><strong id="my-max">96</strong></div>
             </div>
             <ul id="my-roster" class="rows"></ul>
           </div>
-          <div class="card">
-            <h3>Table</h3>
+          <div class="panel">
+            <span class="label">The room</span>
             <ul id="table-list" class="rows"></ul>
           </div>
-          <div class="card">
-            <h3>Just sold</h3>
+          <div class="panel">
+            <span class="label">Knocked down</span>
             <ul id="sold-log" class="log"></ul>
           </div>
         </aside>
@@ -367,10 +578,11 @@ button { font: inherit; cursor: pointer; }
     <!-- reveal -->
     <div id="p-reveal" class="hidden">
       <div class="reveal">
-        <p class="reveal__kicker">The money is gone. The envelope is open.</p>
-        <div class="reveal__emoji" id="rev-emoji"></div>
+        <p class="reveal__kicker label">The money is gone · the envelope is open</p>
+        <div class="reveal__seal" id="rev-emoji"></div>
         <h2 id="rev-title"></h2>
-        <p id="rev-setup"></p>
+        <div class="hairline"></div>
+        <p id="rev-setup" class="reveal__setup"></p>
         <ul id="rev-stakes" class="chips"></ul>
       </div>
     </div>
@@ -378,31 +590,33 @@ button { font: inherit; cursor: pointer; }
     <!-- pitch -->
     <div id="p-pitch" class="hidden">
       <div id="pitch-strip" class="strip"></div>
-      <p class="prompt">Tap the one who wins this. <span class="muted">Say the rest out loud.</span></p>
+      <p class="prompt">Name the one who wins this. <span>Say the rest out loud.</span></p>
       <div id="mvp-grid" class="mvp-grid"></div>
       <div class="pitch-foot">
         <input id="line-input" maxlength="120" placeholder="One line, if you want (optional)" />
-        <button id="btn-ready" class="btn btn--primary" disabled>Ready</button>
+        <button id="btn-ready" class="btn btn--brass" disabled>Ready</button>
       </div>
     </div>
 
     <!-- vote -->
     <div id="p-vote" class="hidden">
       <div id="vote-strip" class="strip"></div>
-      <p class="prompt">Pick the crew you would rather have. <span class="muted">Not your own.</span></p>
+      <p class="prompt">Which crew would you rather have? <span>Not your own.</span></p>
       <div id="vote-list" class="votes"></div>
     </div>
 
     <!-- results -->
     <div id="p-results" class="hidden">
-      <h2 id="res-headline" style="font-family:var(--serif);font-size:1.7rem"></h2>
-      <p id="res-sub" class="muted" style="margin:.3rem 0 1rem"></p>
+      <div class="res-head">
+        <h2 id="res-headline"></h2>
+        <p id="res-sub" class="label"></p>
+      </div>
       <div id="res-list" class="results"></div>
       <div class="actions">
-        <button id="btn-again" class="btn btn--primary btn--big">Next round</button>
+        <button id="btn-again" class="btn btn--brass btn--big">Next round</button>
       </div>
       <p class="footnote">
-        This is the solo version — you against three bots, one device.
+        This is the solo saleroom — you against three bots on one device.
         The real game is a multiplayer server: everyone joins a room code on their own
         phone and argues out loud. Run it with <code>npm start</code> from the repo.
       </p>
@@ -421,7 +635,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
 const rand = (n) => Math.floor(Math.random() * n);
 const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
-const CFG = { budget: 100, roster: 5, openMs: 6500, bidMs: 4200, soldMs: 1400, passMs: 1000, revealMs: 7500 };
+const CFG = { budget: 100, roster: 5, openMs: 6500, bidMs: 4200, soldMs: 1800, passMs: 1200, revealMs: 8000 };
 
 // Which card categories a scenario rewards. Only the bots use this -- it is how
 // they judge a crew at voting time, so the vote is about fit, not coin flips.
@@ -448,7 +662,6 @@ const BOT_LINES = [
 /* ------------------------------------------------------------------ state */
 let G = null;
 let timer = null;   // phase deadline (epoch ms)
-let botTick = null;
 
 function newGame(carry) {
   const players = [
@@ -458,7 +671,7 @@ function newGame(carry) {
     { id: 'nkechi', name: 'Nkechi', emoji: '🔥', taste: ['Wild', 'Muscle'], nerve: 1.05 },
   ].map((p) => ({
     ...p,
-    budget: CFG.budget, roster: [], mvpId: null, line: '', votes: 0,
+    budget: CFG.budget, roster: [], mvpId: null, line: '', vote: null, votes: 0,
     score: (carry && carry[p.id]) || 0,
   }));
 
@@ -575,16 +788,16 @@ function botsThink() {
 }
 
 function botsPitch() {
+  const unused = shuffle(BOT_LINES); // no two bots reach for the same quip
   for (const p of G.players.slice(1)) {
     const fav = FAVOURS[G.scenario.i] || [];
     // Nominate the best fit for the scenario, breaking ties by what they paid.
     const best = p.roster.slice().sort((a, b) => {
       const fa = fav.indexOf(a.g), fb = fav.indexOf(b.g);
-      const sa = (fa === -1 ? 9 : fa), sb = (fb === -1 ? 9 : fb);
-      return sa - sb || b.price - a.price;
+      return (fa === -1 ? 9 : fa) - (fb === -1 ? 9 : fb) || b.price - a.price;
     })[0];
     p.mvpId = best.i;
-    p.line = Math.random() < 0.75 ? BOT_LINES[rand(BOT_LINES.length)](best.n) : '';
+    p.line = Math.random() < 0.8 ? unused.pop()(best.n) : '';
   }
 }
 
@@ -601,8 +814,7 @@ function crewFit(p) {
 
 function botsVote() {
   for (const p of G.players.slice(1)) {
-    const best = G.players.filter((o) => o.id !== p.id).sort((a, b) => crewFit(b) - crewFit(a))[0];
-    p.vote = best.id;
+    p.vote = G.players.filter((o) => o.id !== p.id).sort((a, b) => crewFit(b) - crewFit(a))[0].id;
   }
 }
 
@@ -635,7 +847,7 @@ setInterval(() => {
   if (left != null) {
     const secs = Math.max(0, Math.ceil(left / 1000));
     $('clock').textContent = secs;
-    $('clock').classList.toggle('is-urgent', secs <= 5 && G.phase === 'auction');
+    $('clock').classList.toggle('urgent', secs <= 5 && G.phase === 'auction' && G.lot && G.lot.status === 'bidding');
   }
   if (left != null && left <= 0) advance();
 }, 300);
@@ -659,9 +871,7 @@ function advance() {
 
 function goVote() {
   const you = me();
-  if (!you.mvpId) {
-    you.mvpId = you.roster.reduce((b, c) => (c.price > b.price ? c : b), you.roster[0]).i;
-  }
+  if (!you.mvpId) you.mvpId = you.roster.reduce((b, c) => (c.price > b.price ? c : b), you.roster[0]).i;
   you.line = $('line-input').value.trim().slice(0, 120);
   botsVote();
   G.phase = 'vote';
@@ -670,6 +880,8 @@ function goVote() {
 }
 
 /* ----------------------------------------------------------------- render */
+const PHASE_NAME = { auction: 'The auction', reveal: 'The reveal', pitch: 'The pitch', vote: 'The vote', results: 'Results' };
+
 function render() {
   const show = (id, on) => $(id).classList.toggle('hidden', !on);
   show('p-auction', G.phase === 'auction');
@@ -678,8 +890,8 @@ function render() {
   show('p-vote', G.phase === 'vote');
   show('p-results', G.phase === 'results');
 
-  $('phase-pill').textContent = { auction: 'Auction', reveal: 'Reveal', pitch: 'Pitch', vote: 'Voting', results: 'Results' }[G.phase];
-  $('round-pill').textContent = `Round ${G.round}`;
+  $('phase-name').textContent = PHASE_NAME[G.phase];
+  $('round-no').textContent = `ROUND ${G.round}`;
   $('btn-skip').classList.toggle('hidden', G.phase === 'results' || G.phase === 'vote');
 
   if (G.phase === 'auction') renderAuction();
@@ -690,46 +902,67 @@ function render() {
 }
 
 function rosterRows(roster) {
-  const rows = roster.map((c) => `<li class="row">
-      <span>${c.e}</span><span class="row__name">${esc(c.n)}</span>
-      <span class="row__price${c.free ? ' free' : ''}">${c.free ? 'free' : c.price + 'c'}</span></li>`);
-  for (let i = roster.length; i < CFG.roster; i++) rows.push('<li class="row row--empty">empty slot</li>');
+  const rows = roster.map((c) => `<li>
+      <span class="who"><span>${c.e}</span><span class="nm">${esc(c.n)}</span></span>
+      <span class="leader"></span>
+      <span class="amt${c.free ? ' free' : ''}">${c.free ? 'unsold' : c.price}</span></li>`);
+  for (let i = roster.length; i < CFG.roster; i++) rows.push('<li class="empty">empty slot</li>');
   return rows.join('');
 }
 
 function renderAuction() {
   const lot = G.lot, you = me();
+  const cardEl = $('lot-card');
+  // The card element is reused, so retrigger the deal animation per lot.
+  if (cardEl.dataset.lotId !== String(G.idx)) {
+    cardEl.dataset.lotId = String(G.idx);
+    cardEl.style.animation = 'none';
+    void cardEl.offsetWidth;
+    cardEl.style.animation = '';
+  }
   $('lot-count').textContent = `Lot ${G.idx + 1} of ${G.lots.length}`;
-  $('lot-emoji').textContent = lot.card.e;
-  $('lot-tag').textContent = lot.card.g;
+  $('lot-no').textContent = `NO. ${String(G.idx + 1).padStart(2, '0')}`;
+  $('lot-face').textContent = lot.card.e;
+  $('lot-cat').textContent = lot.card.g;
   $('lot-name').textContent = lot.card.n;
-  $('lot-role').textContent = `(${lot.card.r})`;
+  $('lot-role').textContent = lot.card.r;
   $('lot-traits').innerHTML = lot.card.s.map((t) => `<li>${esc(t)}</li>`).join('');
 
   const card = $('lot-card');
-  card.classList.toggle('sold', lot.status === 'sold');
-  card.classList.toggle('passed', lot.status === 'passed');
-  const st = $('lot-status');
-  const holder = lot.holder ? G.players.find((p) => p.id === lot.holder) : null;
-  if (lot.status === 'sold') { st.textContent = `Sold — ${holder.name} for ${lot.bid}`; st.className = 'lot-status is-sold'; }
-  else if (lot.status === 'passed') { st.textContent = 'No bids — into the bargain bin'; st.className = 'lot-status is-passed'; }
-  else { st.textContent = 'On the block'; st.className = 'lot-status is-live'; }
+  card.classList.toggle('is-passed', lot.status === 'passed');
+  const oldStamp = card.querySelector('.stamp');
+  if (oldStamp) oldStamp.remove();
+  if (lot.status !== 'bidding') {
+    const stamp = document.createElement('div');
+    stamp.className = 'stamp' + (lot.status === 'passed' ? ' stamp--passed' : '');
+    stamp.textContent = lot.status === 'sold' ? 'Sold' : 'No bid';
+    card.appendChild(stamp);
+  }
 
-  $('bid-now').textContent = lot.bid || '—';
-  $('bid-holder').textContent = holder ? `held by ${holder.name}` : 'no bids yet';
+  const holder = lot.holder ? G.players.find((p) => p.id === lot.holder) : null;
+  const st = $('lot-status');
+  if (lot.status === 'sold') { st.textContent = `Knocked down to ${holder.name} — ${lot.bid}`; st.className = 'status sold'; }
+  else if (lot.status === 'passed') { st.textContent = 'Passed — into the bargain bin'; st.className = 'status passed'; }
+  else { st.textContent = 'On the block'; st.className = 'status'; }
+
+  $('bid-now').textContent = lot.bid || '––';
+  $('bid-now').classList.toggle('empty', !lot.bid);
+  $('bid-holder').innerHTML = holder ? `held by <b>${esc(holder.name)}</b>` : 'no bids yet';
 
   $('my-budget').textContent = you.budget;
   $('my-max').textContent = Math.max(0, maxBid(you));
   $('my-roster').innerHTML = rosterRows(you.roster);
 
   $('table-list').innerHTML = G.players.map((p) => `
-    <li class="row${p.human ? ' you' : ''}${lot.holder === p.id ? ' high' : ''}">
-      <span>${p.emoji}</span><span class="row__name">${esc(p.name)}</span>
-      <span class="row__meta">${p.budget}c · ${p.roster.length}/${CFG.roster}</span></li>`).join('');
+    <li class="${p.human ? 'you' : ''}${lot.holder === p.id ? ' high' : ''}">
+      <span class="who"><span>${p.emoji}</span><span class="nm">${esc(p.name)}</span></span>
+      <span class="leader"></span>
+      <span class="amt">${p.budget} · ${p.roster.length}/${CFG.roster}</span></li>`).join('');
 
   $('sold-log').innerHTML = G.sold.length
-    ? G.sold.slice(0, 6).map((s) => `<li>${s.card.e} <b>${esc(s.card.n)}</b> → ${esc(s.who)} <span class="price">${s.price}c</span></li>`).join('')
-    : '<li class="muted">Nothing yet.</li>';
+    ? G.sold.slice(0, 6).map((s) => `<li><span>${s.card.e}</span><b>${esc(s.card.n)}</b>
+        <span class="leader"></span><span class="amt">${s.price}</span></li>`).join('')
+    : '<li>Nothing yet.</li>';
 
   const full = you.roster.length >= CFG.roster;
   const live = lot.status === 'bidding';
@@ -742,11 +975,11 @@ function renderAuction() {
     b.dataset.amount = amt;
   }
   const after = CFG.roster - you.roster.length - 1;
-  $('bid-hint').textContent = full ? 'Roster full — enjoy watching the others panic.'
-    : holding ? 'You hold the high bid.'
+  $('bid-hint').textContent = full ? 'Roster full. Sit back and watch the others panic.'
+    : holding ? 'Yours, unless somebody speaks.'
     : maxBid(you) < minBid() ? 'Out of reach. Wait for a cheaper lot.'
-    : after > 0 ? `Max ${maxBid(you)} — ${after} credit${after === 1 ? '' : 's'} held back for your empty slots.`
-    : `Max ${maxBid(you)} — this is your last slot.`;
+    : after > 0 ? `Ceiling ${maxBid(you)} — ${after} credit${after === 1 ? '' : 's'} held back for your empty slots.`
+    : `Ceiling ${maxBid(you)} — this is your last slot.`;
 }
 
 function renderReveal() {
@@ -766,17 +999,28 @@ function stripHtml(s) {
 function renderPitch() {
   const you = me();
   $('pitch-strip').innerHTML = stripHtml(G.scenario);
-  $('mvp-grid').innerHTML = you.roster.map((c) => `
-    <button class="mvp${you.mvpId === c.i ? ' picked' : ''}" data-mvp="${c.i}">
-      <span class="mvp__emoji">${c.e}</span>
-      <span class="mvp__name">${esc(c.n)}</span>
-      <span class="mvp__role">${esc(c.r)}</span>
-      <span class="mvp__star">★</span></button>`).join('');
+
+  // Rebuild only when the hand changes, so picking a card does not restart
+  // the deal animation on all five.
+  const grid = $('mvp-grid');
+  const signature = `${G.round}:${you.roster.map((c) => c.i).join(',')}`;
+  if (grid.dataset.signature !== signature) {
+    grid.dataset.signature = signature;
+    grid.innerHTML = you.roster.map((c) => `
+      <button class="mvp" data-mvp="${c.i}">
+        <span class="mvp__face">${c.e}</span>
+        <span class="mvp__name">${esc(c.n)}</span>
+        <span class="mvp__role">${esc(c.r)}</span>
+        <span class="mvp__star">★</span></button>`).join('');
+  }
+  for (const btn of grid.children) btn.classList.toggle('picked', btn.dataset.mvp === you.mvpId);
   $('btn-ready').disabled = !you.mvpId;
 }
 
-function crewChips(p) {
-  return p.roster.map((c) => `<span class="crew-chip${c.i === p.mvpId ? ' mvp-chip' : ''}">${c.i === p.mvpId ? '★ ' : ''}${c.e} <b>${esc(c.n)}</b></span>`).join('');
+function crewList(p) {
+  return `<ul class="crew">${p.roster.map((c) => `
+    <li class="${c.i === p.mvpId ? 'is-mvp' : ''}"><span>${c.e}</span><span class="nm">${esc(c.n)}</span>
+      <span class="leader"></span><span class="amt${c.free ? ' free' : ''}">${c.free ? 'unsold' : c.price}</span></li>`).join('')}</ul>`;
 }
 
 function renderVote() {
@@ -785,23 +1029,23 @@ function renderVote() {
   $('vote-list').innerHTML = G.players.map((p) => `
     <article class="vote-card${you.vote === p.id ? ' picked' : ''}">
       <div class="vote-card__head">
-        <h4>${p.emoji} ${esc(p.name)}${p.human ? ' <span class="muted small">(you)</span>' : ''}</h4>
-        <span class="muted small">${p.budget} left</span>
+        <h4>${p.emoji} ${esc(p.name)}</h4>
+        <span class="label">${p.budget} unspent</span>
       </div>
-      <div class="crew">${crewChips(p)}</div>
-      ${p.line ? `<p class="line">“${esc(p.line)}”</p>` : ''}
-      ${p.human ? '<span class="muted small">Your crew.</span>'
-        : `<button class="btn ${you.vote === p.id ? 'btn--primary' : ''}" data-vote="${p.id}">${you.vote === p.id ? 'Voted ✓' : 'Vote'}</button>`}
+      ${crewList(p)}
+      ${p.line ? `<p class="line">${esc(p.line)}</p>` : ''}
+      ${p.human ? '<span class="label">Your crew</span>'
+        : `<button class="btn ${you.vote === p.id ? 'btn--brass' : ''}" data-vote="${p.id}">${you.vote === p.id ? 'Voted ✓' : 'Vote for this crew'}</button>`}
     </article>`).join('');
 }
 
 function renderResults() {
   const r = G.results;
   const champ = r.scored[0];
-  $('res-headline').textContent = r.tie ? 'Split decision'
-    : champ.votes > 0 ? `${champ.name === 'You' ? 'You win' : champ.name + ' wins'} the round`
-    : 'Nobody convinced anybody';
-  $('res-sub').textContent = `${G.scenario.e} ${G.scenario.n} — round ${G.round}`;
+  $('res-headline').innerHTML = r.tie ? 'A <b>split decision</b>'
+    : champ.votes > 0 ? (champ.name === 'You' ? 'You take <b>the round</b>' : `<b>${esc(champ.name)}</b> takes the round`)
+    : 'Nobody convinced <b>anybody</b>';
+  $('res-sub').textContent = `${G.scenario.n} · round ${G.round}`;
   $('res-list').innerHTML = r.scored.map((s, i) => {
     const p = G.players.find((x) => x.id === s.id);
     return `<div class="result${r.winners.includes(s.id) ? ' win' : ''}">
@@ -809,8 +1053,8 @@ function renderResults() {
       <div>
         <div class="result__name">${p.emoji} ${esc(s.name)}</div>
         <div class="result__sub">${s.votes} vote${s.votes === 1 ? '' : 's'} · spent ${s.spent}</div>
-        <div class="crew" style="margin-top:.45rem">${crewChips(p)}</div>
-        ${p.line ? `<p class="line" style="margin-top:.5rem">“${esc(p.line)}”</p>` : ''}
+        ${crewList(p)}
+        ${p.line ? `<p class="line" style="margin-top:.6rem">${esc(p.line)}</p>` : ''}
       </div>
       <div class="result__score"><strong>+${s.pts}</strong><div class="result__sub">${s.total} total</div></div>
     </div>`;
@@ -825,7 +1069,7 @@ $('btn-start').addEventListener('click', () => {
   nextLot();
 });
 
-document.querySelector('.quickbids').addEventListener('click', (e) => {
+document.querySelector('.keys').addEventListener('click', (e) => {
   const b = e.target.closest('[data-step]');
   if (b && !b.disabled) placeBid('you', Number(b.dataset.amount));
 });

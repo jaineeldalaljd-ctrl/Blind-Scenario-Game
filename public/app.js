@@ -141,6 +141,7 @@ function render() {
   renderChat();
 }
 
+/** A catalogue row: name on the left, dotted leader, figure on the right. */
 function playerRow(p, extra = '') {
   const you = state.you && p.id === state.you.id;
   const classes = ['player-row'];
@@ -149,8 +150,9 @@ function playerRow(p, extra = '') {
   if (p.isHighBidder) classes.push('is-high');
   return `<li class="${classes.join(' ')}">
     <span class="player-row__dot"></span>
-    <span class="player-row__name">${esc(p.name)}${you ? ' <span class="muted small">(you)</span>' : ''}</span>
+    <span class="player-row__name">${esc(p.name)}</span>
     ${p.isHost ? '<span class="crown" title="Host">★</span>' : ''}
+    <span class="leader"></span>
     <span class="player-row__meta">${extra}</span>
   </li>`;
 }
@@ -189,18 +191,37 @@ function renderAuction() {
   card.classList.remove('is-sold', 'is-passed');
 
   if (lot) {
+    // The card element is reused, so the deal animation has to be retriggered
+    // whenever a new lot comes up.
+    if (card.dataset.lotId !== `${room.lotNumber}:${lot.character.id}`) {
+      card.dataset.lotId = `${room.lotNumber}:${lot.character.id}`;
+      card.style.animation = 'none';
+      void card.offsetWidth;
+      card.style.animation = '';
+    }
+    $('lot-no').textContent = `NO. ${String(room.lotNumber).padStart(2, '0')}`;
     $('lot-emoji').textContent = lot.character.emoji;
     $('lot-tag').textContent = lot.character.tag;
     $('lot-name').textContent = lot.character.name;
-    $('lot-role').textContent = `(${lot.character.role})`;
+    $('lot-role').textContent = lot.character.role;
     $('lot-traits').innerHTML = lot.character.traits.map((t) => `<li>${esc(t)}</li>`).join('');
 
+    // The stamp is a one-shot element so its slam animation replays per lot.
+    const old = card.querySelector('.stamp');
+    if (old) old.remove();
+    if (lot.status !== 'bidding') {
+      const stamp = document.createElement('div');
+      stamp.className = 'stamp' + (lot.status === 'passed' ? ' stamp--passed' : '');
+      stamp.textContent = lot.status === 'sold' ? 'Sold' : 'No bid';
+      card.appendChild(stamp);
+    }
+
     if (lot.status === 'sold') {
-      statusEl.textContent = `Sold — ${lot.bidderName} for ${lot.bid}`;
+      statusEl.textContent = `Knocked down to ${lot.bidderName} — ${lot.bid}`;
       statusEl.className = 'lot-status is-sold';
       card.classList.add('is-sold');
     } else if (lot.status === 'passed') {
-      statusEl.textContent = 'No bids — into the bargain bin';
+      statusEl.textContent = 'Passed — into the bargain bin';
       statusEl.className = 'lot-status is-passed';
       card.classList.add('is-passed');
     } else {
@@ -208,8 +229,9 @@ function renderAuction() {
       statusEl.className = 'lot-status is-live';
     }
 
-    $('current-bid').textContent = lot.bid > 0 ? lot.bid : '—';
-    $('current-bidder').textContent = lot.bidderName ? `held by ${lot.bidderName}` : 'no bids yet';
+    $('current-bid').textContent = lot.bid > 0 ? lot.bid : '––';
+    $('current-bid').classList.toggle('is-empty', !lot.bid);
+    $('current-bidder').innerHTML = lot.bidderName ? `held by <b>${esc(lot.bidderName)}</b>` : 'no bids yet';
   }
 
   $('my-budget').textContent = you.budget;
@@ -262,7 +284,8 @@ function rosterItems(roster, size) {
   const rows = roster.map((c) => `<li class="roster-item">
       <span class="roster-item__emoji">${c.emoji}</span>
       <span class="roster-item__name">${esc(c.name)}</span>
-      <span class="roster-item__price${c.free ? ' is-free' : ''}">${c.free ? 'free' : `${c.price}c`}</span>
+      <span class="leader"></span>
+      <span class="roster-item__price${c.free ? ' is-free' : ''}">${c.free ? 'unsold' : c.price}</span>
     </li>`);
 
   for (let i = roster.length; i < size; i++) {
@@ -297,13 +320,25 @@ function renderPitch() {
   const { room, players, you } = state;
   $('pitch-scenario').innerHTML = scenarioStrip(room.scenario);
 
-  $('mvp-grid').innerHTML = you.roster.map((c) => `
-    <button class="mvp-card${you.mvpId === c.id ? ' is-picked' : ''}" data-mvp="${c.id}" ${you.pitchSubmitted ? 'disabled' : ''}>
-      <span class="mvp-card__emoji">${c.emoji}</span>
-      <span class="mvp-card__name">${esc(c.name)}</span>
-      <span class="mvp-card__role">${esc(c.role)}</span>
-      <span class="mvp-card__star">★</span>
-    </button>`).join('');
+  // Rebuild only when the hand itself changes. Re-rendering on every state
+  // update (someone readies up, someone chats) would restart the deal
+  // animation and make the cards flicker.
+  const grid = $('mvp-grid');
+  const signature = `${room.round}:${you.roster.map((c) => c.id).join(',')}`;
+  if (grid.dataset.signature !== signature) {
+    grid.dataset.signature = signature;
+    grid.innerHTML = you.roster.map((c) => `
+      <button class="mvp-card" data-mvp="${c.id}">
+        <span class="mvp-card__emoji">${c.emoji}</span>
+        <span class="mvp-card__name">${esc(c.name)}</span>
+        <span class="mvp-card__role">${esc(c.role)}</span>
+        <span class="mvp-card__star">★</span>
+      </button>`).join('');
+  }
+  for (const btn of grid.children) {
+    btn.classList.toggle('is-picked', btn.dataset.mvp === you.mvpId);
+    btn.disabled = you.pitchSubmitted;
+  }
 
   const box = $('input-line');
   if (pitchRoundLoaded !== room.round) {
@@ -321,11 +356,14 @@ function renderPitch() {
 
 /* ------------------------------------------------------------------ vote */
 
-function crewChips(player) {
-  return player.roster.map((c) => {
-    const isMvp = c.id === player.mvpId;
-    return `<span class="crew-chip${isMvp ? ' is-mvp' : ''}">${isMvp ? '★ ' : ''}${c.emoji} <b>${esc(c.name)}</b></span>`;
-  }).join('');
+/** Five names as a catalogue list, MVP starred, price on the right. */
+function crewList(player) {
+  return `<ul class="crew-list">${player.roster.map((c) => `
+    <li class="${c.id === player.mvpId ? 'is-mvp' : ''}">
+      <span>${c.emoji}</span><span class="nm">${esc(c.name)}</span>
+      <span class="leader"></span>
+      <span class="amt${c.free ? ' is-free' : ''}">${c.free ? 'unsold' : c.price}</span>
+    </li>`).join('')}</ul>`;
 }
 
 function renderVote() {
@@ -337,14 +375,14 @@ function renderVote() {
     const picked = you.vote === p.id;
     return `<article class="vote-card${picked ? ' is-picked' : ''}${isSelf ? ' is-self' : ''}">
       <div class="vote-card__head">
-        <h4>${esc(p.name)}${isSelf ? ' <span class="muted small">(you)</span>' : ''}</h4>
-        <span class="muted small">${p.budget} left</span>
+        <h4>${esc(p.name)}</h4>
+        <span class="label">${p.budget} unspent</span>
       </div>
-      <div class="vote-card__crew">${crewChips(p)}</div>
-      ${p.line ? `<p class="vote-card__line">“${esc(p.line)}”</p>` : ''}
+      ${crewList(p)}
+      ${p.line ? `<p class="vote-card__line">${esc(p.line)}</p>` : ''}
       ${isSelf
-        ? '<span class="muted small">Your crew.</span>'
-        : `<button class="btn ${picked ? 'btn--primary' : ''}" data-vote="${p.id}">${picked ? 'Voted ✓' : 'Vote'}</button>`}
+        ? '<span class="label">Your crew</span>'
+        : `<button class="btn ${picked ? 'btn--primary' : ''}" data-vote="${p.id}">${picked ? 'Voted ✓' : 'Vote for this crew'}</button>`}
     </article>`;
   }).join('');
 }
@@ -360,9 +398,10 @@ function renderResults() {
   const champion = r.scored[0];
 
   $('results-headline').textContent = r.tie
-    ? 'Split decision'
-    : (champion && champion.votes > 0 ? `${champion.name} wins the round` : 'Nobody convinced anybody');
-  $('results-sub').textContent = `${r.scenario.emoji} ${r.scenario.title} — round ${r.round}`;
+    ? 'A split decision'
+    : (champion && champion.votes > 0 ? `${champion.name} takes the round` : 'Nobody convinced anybody');
+  $('results-sub').textContent = `${r.scenario.title} · round ${r.round}`;
+  $('results-sub').className = 'label';
 
   $('results-list').innerHTML = r.scored.map((s, i) => {
     const p = byId.get(s.id) || {};
@@ -372,8 +411,8 @@ function renderResults() {
       <div>
         <div class="result-row__name">${esc(s.name)}</div>
         <div class="result-row__sub">${s.votes} vote${s.votes === 1 ? '' : 's'} · spent ${s.spent}</div>
-        <div class="vote-card__crew" style="margin-top:.45rem">${p.roster ? crewChips(p) : ''}</div>
-        ${p.line ? `<p class="result-row__pitch">“${esc(p.line)}”</p>` : ''}
+        ${p.roster ? crewList(p) : ''}
+        ${p.line ? `<p class="result-row__pitch">${esc(p.line)}</p>` : ''}
       </div>
       <div class="result-row__score">
         <strong>+${s.points}</strong>

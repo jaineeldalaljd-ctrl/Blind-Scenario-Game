@@ -21,10 +21,10 @@
     </p>
 
     <ul class="steps">
-      <li><span>🎯</span> Bid on people. Nobody knows the game yet.</li>
-      <li><span>📜</span> Scenario drops once the money is gone.</li>
-      <li><span>⭐</span> Tap your MVP. Argue out loud.</li>
-      <li><span>🗳️</span> Vote for the best crew. Not your own.</li>
+      <li><span>01</span><span><b>Bid.</b> Lots come up one at a time. Nobody knows the scenario yet.</span></li>
+      <li><span>02</span><span><b>Reveal.</b> The envelope opens once every roster is full.</span></li>
+      <li><span>03</span><span><b>Pitch.</b> Name the one of your five who wins this.</span></li>
+      <li><span>04</span><span><b>Vote.</b> Best crew takes the round.</span></li>
     </ul>
 
     <label class="field">
@@ -104,6 +104,7 @@
           </div>
 
           <article id="lot-card" class="lot-card">
+            <span id="lot-no" class="lot-card__no"></span>
             <div class="lot-card__emoji" id="lot-emoji">?</div>
             <div class="lot-card__body">
               <span id="lot-tag" class="tag"></span>
@@ -115,9 +116,11 @@
 
           <div class="bidbar">
             <div class="bidbar__current">
-              <span class="muted small">Current bid</span>
-              <strong id="current-bid">—</strong>
-              <span id="current-bidder" class="muted small"></span>
+              <span class="muted">Standing bid</span>
+              <div class="bidbar__figure">
+                <strong id="current-bid">––</strong>
+                <span id="current-bidder" class="muted small"></span>
+              </div>
             </div>
             <div class="bidbar__controls">
               <div class="quickbids">
