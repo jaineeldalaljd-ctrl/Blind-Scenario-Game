@@ -256,14 +256,17 @@ test('an MVP must come off your own roster', () => {
   assert.strictEqual(room.players.get('p0').mvpId, mine);
 });
 
-test('you cannot go ready without an MVP', () => {
-  const room = makeRoom(3);
+test('going ready without a star nominates your priciest signing', () => {
+  const room = makeRoom(3, { budget: 100, rosterSize: 5 });
   room.startRound();
   runAuction(room);
   room.startPitch();
-  assert.ok(room.submitPitch('p0', { line: 'trust me' }).error);
-  assert.strictEqual(room.players.get('p0').pitchSubmitted, false);
-  assert.ok(room.submitPitch('p0', { mvpId: room.players.get('p0').roster[1].id }).ok);
+
+  assert.ok(room.submitPitch('p0', { line: 'Trust me on this one.' }).ok);
+  const p = room.players.get('p0');
+  const priciest = p.roster.reduce((best, c) => (c.price > best.price ? c : best), p.roster[0]);
+  assert.strictEqual(p.mvpId, priciest.id);
+  assert.strictEqual(p.pitchSubmitted, true);
 });
 
 test('picks and one-liners are sealed until voting opens', () => {
@@ -290,14 +293,14 @@ test('picks and one-liners are sealed until voting opens', () => {
   assert.match(now.line, /done this before/);
 });
 
-test('the one-liner is capped and tidied', () => {
+test('the defence is capped at about two lines and tidied', () => {
   const room = makeRoom(2);
   room.startRound();
   runAuction(room);
   room.startPitch();
   room.submitPitch('p0', { mvpId: room.players.get('p0').roster[0].id, line: `  lots   of    space ${'x'.repeat(300)}` });
   const line = room.players.get('p0').line;
-  assert.strictEqual(line.length, 120);
+  assert.strictEqual(line.length, 160);
   assert.ok(line.startsWith('lots of space'), 'whitespace should collapse');
 });
 

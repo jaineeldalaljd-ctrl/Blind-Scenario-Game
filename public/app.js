@@ -141,6 +141,15 @@ function render() {
   renderChat();
 }
 
+// A hue per seat, so a player is the same colour everywhere on screen.
+const TINTS = ['--p1', '--p2', '--p3', '--p4', '--p5', '--p6', '--p7', '--p8'];
+const tintOf = (id) => {
+  const i = state.players.findIndex((p) => p.id === id);
+  return `var(${TINTS[(i < 0 ? 0 : i) % TINTS.length]})`;
+};
+const avatarOf = (p) =>
+  `<span class="avatar" style="background:${tintOf(p.id)};color:#241242">${esc((p.name[0] || '?').toUpperCase())}</span>`;
+
 /** A catalogue row: name on the left, dotted leader, figure on the right. */
 function playerRow(p, extra = '') {
   const you = state.you && p.id === state.you.id;
@@ -152,8 +161,7 @@ function playerRow(p, extra = '') {
     <span class="player-row__dot"></span>
     <span class="player-row__name">${esc(p.name)}</span>
     ${p.isHost ? '<span class="crown" title="Host">★</span>' : ''}
-    <span class="leader"></span>
-    <span class="player-row__meta">${extra}</span>
+    ${extra ? `<span class="leader"></span><span class="player-row__meta">${extra}</span>` : ''}
   </li>`;
 }
 
@@ -170,14 +178,13 @@ function renderLobby() {
     if (document.activeElement !== input) input.value = room.settings[input.dataset.setting];
     input.disabled = !you.isHost;
   }
-  $('settings-note').classList.toggle('hidden', you.isHost);
 
   const ready = room.canStart;
   $('btn-start').disabled = !you.isHost || !ready;
   $('btn-start').textContent = room.round > 0 ? 'Start another round' : 'Open the bidding';
   $('start-hint').textContent = !ready
-    ? 'Waiting for at least one more player…'
-    : (you.isHost ? '' : 'Waiting for the host to start.');
+    ? 'Waiting for one more player…'
+    : (you.isHost ? '' : 'Waiting for the host.');
 }
 
 /* --------------------------------------------------------------- auction */
@@ -211,8 +218,10 @@ function renderAuction() {
     if (old) old.remove();
     if (lot.status !== 'bidding') {
       const stamp = document.createElement('div');
-      stamp.className = 'stamp' + (lot.status === 'passed' ? ' stamp--passed' : '');
-      stamp.textContent = lot.status === 'sold' ? 'Sold' : 'No bid';
+      stamp.className = 'stamp' + (lot.status === 'sold' ? ' stamp--sold' : '');
+      stamp.innerHTML = lot.status === 'sold'
+        ? `<div>Sold<small>${esc(lot.bidderName)} · ${lot.bid}</small></div>`
+        : '<div>No bids</div>';
       card.appendChild(stamp);
     }
 
@@ -264,14 +273,14 @@ function renderAuction() {
 
   const emptyAfter = room.settings.rosterSize - you.roster.length - 1;
   $('bid-hint').textContent = full
-    ? 'Roster full — sit back and watch the others panic.'
+    ? 'Roster full.'
     : holding
-      ? 'You hold the high bid.'
+      ? 'Yours, unless somebody speaks.'
       : you.maxBid < you.minBid
-        ? 'You cannot cover this one. Save it for a cheaper lot.'
+        ? 'Out of reach.'
         : emptyAfter > 0
-          ? `Max ${you.maxBid} — ${emptyAfter} credit${emptyAfter === 1 ? '' : 's'} held back for your empty slots.`
-          : `Max ${you.maxBid} — this is your last slot.`;
+          ? `Ceiling ${you.maxBid} · ${emptyAfter} reserved for empty slots`
+          : `Ceiling ${you.maxBid} · last slot`;
 }
 
 function bidAmountFor(step) {
@@ -307,11 +316,12 @@ function renderReveal() {
 
 /* ----------------------------------------------------------------- pitch */
 
-function scenarioStrip(s) {
+/** By the vote the premise has been read twice, so the setup line is dropped. */
+function scenarioStrip(s, compact) {
   return `<span class="scenario-strip__emoji">${s.emoji}</span>
     <div>
       <h2>${esc(s.title)}</h2>
-      <p>${esc(s.setup)}</p>
+      ${compact ? '' : `<p>${esc(s.setup)}</p>`}
     </div>
     <ul class="scenario-strip__stakes">${s.stakes.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`;
 }
@@ -332,7 +342,7 @@ function renderPitch() {
         <span class="mvp-card__emoji">${c.emoji}</span>
         <span class="mvp-card__name">${esc(c.name)}</span>
         <span class="mvp-card__role">${esc(c.role)}</span>
-        <span class="mvp-card__star">★</span>
+        <span class="mvp-card__star">⭐</span>
       </button>`).join('');
   }
   for (const btn of grid.children) {
@@ -344,10 +354,12 @@ function renderPitch() {
   if (pitchRoundLoaded !== room.round) {
     box.value = you.line || '';
     pitchRoundLoaded = room.round;
+    updateLineCount();
   }
   box.disabled = you.pitchSubmitted;
-  $('btn-pitch').disabled = you.pitchSubmitted || !you.mvpId;
-  $('btn-pitch').textContent = you.pitchSubmitted ? 'Ready ✓' : 'Ready';
+  // Starring is optional -- skipping it nominates your priciest signing.
+  $('btn-pitch').disabled = you.pitchSubmitted;
+  $('btn-pitch').textContent = you.pitchSubmitted ? 'Locked in ✓' : 'Lock it in';
 
   $('pitch-status').innerHTML = players
     .map((p) => playerRow(p, p.pitchSubmitted ? '✓' : '…'))
@@ -368,21 +380,21 @@ function crewList(player) {
 
 function renderVote() {
   const { room, players, you } = state;
-  $('vote-scenario').innerHTML = scenarioStrip(room.scenario);
+  $('vote-scenario').innerHTML = scenarioStrip(room.scenario, true);
 
   $('vote-list').innerHTML = players.map((p) => {
     const isSelf = p.id === you.id;
     const picked = you.vote === p.id;
-    return `<article class="vote-card${picked ? ' is-picked' : ''}${isSelf ? ' is-self' : ''}">
+    return `<article class="vote-card${picked ? ' is-picked' : ''}${isSelf ? ' is-self' : ''}" style="--tint:${tintOf(p.id)}">
       <div class="vote-card__head">
-        <h4>${esc(p.name)}</h4>
-        <span class="label">${p.budget} unspent</span>
+        ${avatarOf(p)}<h4>${esc(p.name)}${isSelf ? ' (you)' : ''}</h4>
+        <span class="label">${p.budget} left</span>
       </div>
+      <p class="vote-card__line${p.line ? '' : ' is-empty'}">${p.line ? esc(p.line) : 'Said nothing at all.'}</p>
       ${crewList(p)}
-      ${p.line ? `<p class="vote-card__line">${esc(p.line)}</p>` : ''}
       ${isSelf
-        ? '<span class="label">Your crew</span>'
-        : `<button class="btn ${picked ? 'btn--primary' : ''}" data-vote="${p.id}">${picked ? 'Voted ✓' : 'Vote for this crew'}</button>`}
+        ? '<span class="label" style="text-align:center">Your crew</span>'
+        : `<button class="btn ${picked ? 'btn--primary' : ''}" data-vote="${p.id}">${picked ? 'Voted ✓' : 'Vote'}</button>`}
     </article>`;
   }).join('');
 }
@@ -409,15 +421,12 @@ function renderResults() {
     return `<div class="result-row${won ? ' is-winner' : ''}">
       <div class="result-row__rank">${i + 1}</div>
       <div>
-        <div class="result-row__name">${esc(s.name)}</div>
-        <div class="result-row__sub">${s.votes} vote${s.votes === 1 ? '' : 's'} · spent ${s.spent}</div>
+        <div class="result-row__name">${avatarOf(p)} ${esc(s.name)}</div>
+        <div class="result-row__sub">${s.votes} vote${s.votes === 1 ? '' : 's'} · spent ${s.spent} · ${p.score || 0} total</div>
         ${p.roster ? crewList(p) : ''}
-        ${p.line ? `<p class="result-row__pitch">${esc(p.line)}</p>` : ''}
+        ${p.line ? `<p class="result-row__pitch">“${esc(p.line)}”</p>` : ''}
       </div>
-      <div class="result-row__score">
-        <strong>+${s.points}</strong>
-        <div class="result-row__sub">${p.score || 0} total</div>
-      </div>
+      <div class="result-row__score"><strong>+${s.points}</strong></div>
     </div>`;
   }).join('');
 
@@ -523,8 +532,22 @@ $('btn-pitch').addEventListener('click', () => {
   send({ type: 'pitch', mvpId: state.you.mvpId, line: $('input-line').value });
 });
 
+/** Grow to fit: a defence you cannot see all of is worse than no defence. */
+function updateLineCount() {
+  const box = $('input-line');
+  const n = box.value.length;
+  $('line-count').textContent = `${n} / 160`;
+  $('line-count').classList.toggle('is-close', n > 135);
+  box.style.height = 'auto';
+  box.style.height = `${box.scrollHeight}px`;
+}
+
+$('input-line').addEventListener('input', updateLineCount);
+
+// Enter sends; Shift+Enter is a newline.
 $('input-line').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && state && state.you.mvpId && !state.you.pitchSubmitted) {
+  if (e.key === 'Enter' && !e.shiftKey && state && !state.you.pitchSubmitted) {
+    e.preventDefault();
     send({ type: 'pitch', mvpId: state.you.mvpId, line: $('input-line').value });
   }
 });

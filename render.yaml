@@ -1,0 +1,12 @@
+# Render blueprint. Works as-is on the free tier; websockets are supported.
+services:
+  - type: web
+    name: blind-scenario-auction
+    runtime: node
+    plan: free
+    buildCommand: npm ci --omit=dev
+    startCommand: node server/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production

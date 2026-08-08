@@ -50,8 +50,10 @@ const LIMITS = {
   voteSeconds: [15, 300],
 };
 
-// The one-liner is optional and deliberately short: the real pitch is spoken.
-const LINE_MAX = 120;
+// The defence is what everybody reads and votes on. Capped at roughly two
+// lines -- long enough to make a case, short enough that nobody is typing an
+// essay while four people wait.
+const LINE_MAX = 160;
 
 const MAX_PLAYERS = 8;
 const SOLD_PAUSE_MS = 2600;
@@ -372,7 +374,11 @@ class Room {
     if (!player) return { error: 'You are not in this room.' };
 
     if (mvpId && player.roster.some((c) => c.id === mvpId)) player.mvpId = mvpId;
-    if (!player.mvpId) return { error: 'Pick your MVP first.' };
+    // Starring somebody is optional: skipping it nominates the big signing
+    // rather than blocking a player who only wants to write their defence.
+    if (!player.mvpId && player.roster.length) {
+      player.mvpId = player.roster.reduce((best, c) => (c.price > best.price ? c : best), player.roster[0]).id;
+    }
 
     player.line = String(line || '').replace(/\s+/g, ' ').trim().slice(0, LINE_MAX);
     player.pitchSubmitted = true;

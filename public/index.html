@@ -17,15 +17,15 @@
   <div class="home-card">
     <h1 class="logo">Blind Scenario<span>Auction</span></h1>
     <p class="tagline">
-      Draft five people. Spend every credit. <em>Then</em> find out what you need them for.
+      Draft five people blind. <em>Then</em> find out what you needed them for.
     </p>
 
-    <ul class="steps">
-      <li><span>01</span><span><b>Bid.</b> Lots come up one at a time. Nobody knows the scenario yet.</span></li>
-      <li><span>02</span><span><b>Reveal.</b> The envelope opens once every roster is full.</span></li>
-      <li><span>03</span><span><b>Pitch.</b> Name the one of your five who wins this.</span></li>
-      <li><span>04</span><span><b>Vote.</b> Best crew takes the round.</span></li>
-    </ul>
+    <ol class="steps">
+      <li><span>01</span>Bid</li>
+      <li><span>02</span>Reveal</li>
+      <li><span>03</span>Pitch</li>
+      <li><span>04</span>Vote</li>
+    </ol>
 
     <label class="field">
       <span>Your name</span>
@@ -68,7 +68,7 @@
     <div id="panel-lobby" class="panel hidden">
       <div class="panel__head">
         <h2>Lobby</h2>
-        <p class="muted">Share the code. Bidding starts when the host says so.</p>
+        <p class="muted">Share the room code to fill the table.</p>
       </div>
 
       <div class="lobby-grid">
@@ -82,12 +82,16 @@
           <div id="settings" class="settings">
             <label class="field field--row"><span>Budget</span><input type="number" data-setting="budget" min="20" max="500" step="5" /></label>
             <label class="field field--row"><span>Roster size</span><input type="number" data-setting="rosterSize" min="3" max="7" /></label>
-            <label class="field field--row"><span>Bid clock (s)</span><input type="number" data-setting="bidSeconds" min="5" max="30" /></label>
-            <label class="field field--row"><span>Opening clock (s)</span><input type="number" data-setting="openSeconds" min="6" max="40" /></label>
-            <label class="field field--row"><span>Pitch time (s)</span><input type="number" data-setting="pitchSeconds" min="30" max="600" step="10" /></label>
-            <label class="field field--row"><span>Vote time (s)</span><input type="number" data-setting="voteSeconds" min="20" max="300" step="5" /></label>
           </div>
-          <p id="settings-note" class="muted small">Only the host can change these.</p>
+          <details class="tuck">
+            <summary>Clocks</summary>
+            <div class="settings">
+              <label class="field field--row"><span>Bid</span><input type="number" data-setting="bidSeconds" min="5" max="30" /></label>
+              <label class="field field--row"><span>Opening</span><input type="number" data-setting="openSeconds" min="6" max="40" /></label>
+              <label class="field field--row"><span>Pitch</span><input type="number" data-setting="pitchSeconds" min="20" max="600" step="10" /></label>
+              <label class="field field--row"><span>Vote</span><input type="number" data-setting="voteSeconds" min="15" max="300" step="5" /></label>
+            </div>
+          </details>
           <button id="btn-start" class="btn btn--primary btn--big">Open the bidding</button>
           <p id="start-hint" class="muted small"></p>
         </div>
@@ -175,11 +179,16 @@
     <!-- ------------------------------------------------------- PITCH -->
     <div id="panel-pitch" class="panel hidden">
       <div id="pitch-scenario" class="scenario-strip"></div>
-      <p class="prompt">Tap the one who wins this. <span class="muted">Say the rest out loud.</span></p>
+      <p class="prompt">Defend your five.</p>
+      <p class="sub">Star the one who wins it, then make your case in a line or two.</p>
       <div id="mvp-grid" class="mvp-grid"></div>
-      <div class="pitch-foot">
-        <input id="input-line" maxlength="120" placeholder="One line, if you want (optional)" autocomplete="off" />
-        <button id="btn-pitch" class="btn btn--primary">Ready</button>
+      <div class="writer">
+        <textarea id="input-line" rows="2" maxlength="160"
+          placeholder="Ramsay feeds forty people from a burnt-out supermarket. The shouting is a feature."></textarea>
+        <div class="writer__foot">
+          <span id="line-count" class="count">0 / 160</span>
+          <button id="btn-pitch" class="btn btn--primary">Lock it in</button>
+        </div>
       </div>
       <ul id="pitch-status" class="player-list player-list--compact"></ul>
     </div>
@@ -187,7 +196,8 @@
     <!-- -------------------------------------------------------- VOTE -->
     <div id="panel-vote" class="panel hidden">
       <div id="vote-scenario" class="scenario-strip"></div>
-      <p class="prompt">Pick the crew you would rather have. <span class="muted">Not your own.</span></p>
+      <p class="prompt">Whose crew wins this?</p>
+      <p class="sub">Anyone but yourself.</p>
       <div id="vote-list" class="vote-list"></div>
     </div>
 

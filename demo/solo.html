@@ -1,608 +1,453 @@
 <title>Blind Scenario Auction</title>
-<!-- Needed when this file is opened straight from disk, where nothing else
-     supplies a viewport and phones would fall back to a 980px desktop layout. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
 <style>
 /* ============================================================== tokens ===
-   The saleroom: a cream catalogue card lying on a green baize table, lit by
-   brass. Paper is reserved for the lot itself -- everything else is quiet dark
-   furniture around it. Committed single-theme; the room is the design. */
+   A party game, so: vivid gradient ground, white cards, one loud yellow for
+   every action, and a hue per player. Phone-shaped on every screen -- the
+   column never widens, it just centres. Committed single-theme. */
 :root {
-  --baize:      #0E1A16;
-  --baize-lift: #14231E;
-  --baize-high: #1A2C25;
-  --rule:       #22362F;
-  --rule-soft:  #1B2C25;
+  --violet:  #4310A8;
+  --magenta: #B12A8C;
+  --coral:   #FF6B4A;
 
-  --paper:      #F3ECDE;
-  --paper-deep: #E4D9C2;
-  --paper-ink:  #1B1712;
-  --paper-soft: #6B6153;
+  --card:      #FFFFFF;
+  --card-2:    #F6F2FF;
+  --ink:       #241242;
+  --ink-soft:  #6D5E86;
+  --ink-faint: #A99CBE;
 
-  --brass:      #C8963E;
-  --brass-lit:  #E9BC63;
-  --brass-dim:  #8A6B31;
+  --zap:      #FFE14D;   /* every primary action */
+  --zap-deep: #E9C21F;
+  --win:      #22C55E;
+  --hot:      #FF3D71;
 
-  --bone:       #E9E4D7;
-  --sage:       #8FA097;
-  --oxblood:    #A8341F;
-  --moss:       #6FA07E;
+  --p1: #FFC145;  --p2: #37D5D6;  --p3: #9BE564;  --p4: #FF6B6B;
 
-  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
-  --sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
-
-  --r: 3px;
+  --round: 22px;
+  --round-sm: 14px;
+  --shadow: 0 10px 0 rgba(36,18,66,.18), 0 18px 40px rgba(36,18,66,.28);
+  --font: ui-rounded, 'SF Pro Rounded', 'Segoe UI Variable Display', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
 
+/* The gradient lives on html so it propagates to the canvas and covers pages
+   taller than the viewport; on body it would stop at the fold. */
+html {
+  min-height: 100%;
+  background: linear-gradient(160deg, var(--violet) 0%, var(--magenta) 55%, var(--coral) 130%) no-repeat fixed;
+  background-color: var(--magenta);
+}
+
 body {
-  margin: 0;
-  min-height: 100vh;
-  font-family: var(--sans);
-  color: var(--bone);
-  background:
-    radial-gradient(1200px 700px at 50% -20%, #17322A 0%, transparent 62%),
-    radial-gradient(900px 900px at 110% 110%, #10241D 0%, transparent 55%),
-    var(--baize);
+  margin: 0; min-height: 100vh;
+  font-family: var(--font);
+  color: #fff;
+  background: transparent;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Baize weave. One repeating gradient, cheap, and it stops the ground reading
-   as flat #000-adjacent nothing. */
-body::before {
-  content: '';
-  position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  background-image:
-    repeating-linear-gradient(45deg, rgba(255,255,255,.014) 0 2px, transparent 2px 4px),
-    repeating-linear-gradient(-45deg, rgba(0,0,0,.05) 0 2px, transparent 2px 4px);
-}
-body > * { position: relative; z-index: 1; }
-
-h1, h2, h3, h4 { margin: 0; line-height: 1.12; text-wrap: balance; }
+h1, h2, h3, h4 { margin: 0; line-height: 1.05; text-wrap: balance; font-weight: 800; letter-spacing: -.02em; }
 p { margin: 0; }
 ul, ol { margin: 0; padding: 0; list-style: none; }
 .hidden { display: none !important; }
-.muted { color: var(--sage); }
-.small { font-size: .8rem; }
-.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
 
-/* Small-caps label, used for every structural label in the room. */
-.label {
-  font-size: .64rem; letter-spacing: .2em; text-transform: uppercase;
-  color: var(--sage); font-weight: 600;
-}
+/* One phone-shaped column, centred, on every screen size. */
+.col { width: min(560px, 100%); margin: 0 auto; padding: 0 .9rem 2.5rem; }
+
+.label { font-size: .68rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; opacity: .75; }
+.tabular { font-variant-numeric: tabular-nums; }
 
 button { font: inherit; cursor: pointer; }
-:focus-visible { outline: 2px solid var(--brass-lit); outline-offset: 2px; }
+:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
 
-/* =============================================================== buttons */
+/* ============================================================== buttons */
 .btn {
-  border: 1px solid var(--rule);
-  background: linear-gradient(180deg, var(--baize-high), var(--baize-lift));
-  color: var(--bone);
-  font-weight: 600; padding: .6rem 1.1rem; border-radius: var(--r);
-  transition: transform .08s ease, border-color .15s ease, background .15s ease, color .15s ease;
+  border: 0; border-radius: var(--round-sm);
+  background: rgba(255,255,255,.16); color: #fff;
+  font-weight: 800; font-size: 1rem; padding: .8rem 1.2rem;
+  box-shadow: 0 4px 0 rgba(36,18,66,.25);
+  transition: transform .1s ease, background .15s ease, box-shadow .1s ease;
 }
-.btn:hover:not(:disabled) { border-color: var(--brass-dim); color: var(--brass-lit); }
-.btn:active:not(:disabled) { transform: translateY(1px); }
-.btn:disabled { opacity: .35; cursor: not-allowed; }
+.btn:hover:not(:disabled) { background: rgba(255,255,255,.26); }
+.btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 rgba(36,18,66,.25); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
 
-.btn--brass {
-  background: linear-gradient(180deg, var(--brass-lit) 0%, var(--brass) 55%, #A97C2C 100%);
-  border-color: #7C5D24; color: #241905;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
-}
-.btn--brass:hover:not(:disabled) { color: #241905; filter: brightness(1.06); }
-.btn--big { padding: .9rem 1.5rem; font-size: 1.02rem; letter-spacing: .01em; }
+.btn--zap { background: var(--zap); color: var(--ink); box-shadow: 0 5px 0 var(--zap-deep); }
+.btn--zap:hover:not(:disabled) { background: #FFEA80; }
+.btn--zap:active:not(:disabled) { box-shadow: 0 1px 0 var(--zap-deep); }
+.btn--big { width: 100%; padding: 1.05rem 1.2rem; font-size: 1.15rem; border-radius: var(--round); }
+.btn--ghost { background: rgba(255,255,255,.14); box-shadow: none; padding: .5rem .9rem; font-size: .85rem; }
 
-/* Bid keys: dark keycaps with brass figures, like the board behind an auctioneer. */
+/* Bid keys: chunky, thumb-sized, tabular. */
+.keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
 .key {
-  border: 1px solid var(--rule);
-  background: linear-gradient(180deg, #1B2E27, #122019);
-  color: var(--brass-lit);
-  font-family: var(--mono); font-variant-numeric: tabular-nums;
-  font-size: 1.05rem; font-weight: 600;
-  padding: .62rem .3rem; border-radius: var(--r); width: 100%;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 1px 0 rgba(0,0,0,.4);
-  transition: transform .08s ease, border-color .15s ease, background .15s ease;
+  border: 0; border-radius: var(--round-sm);
+  background: var(--card); color: var(--ink);
+  font-weight: 900; font-size: 1.25rem; font-variant-numeric: tabular-nums;
+  padding: .85rem .2rem;
+  box-shadow: 0 5px 0 rgba(36,18,66,.3);
+  transition: transform .1s ease, box-shadow .1s ease, opacity .15s ease;
 }
-.key:hover:not(:disabled) { border-color: var(--brass); background: linear-gradient(180deg, #24392F, #16261F); }
-.key:active:not(:disabled) { transform: translateY(1px); }
-.key:disabled { opacity: .3; cursor: not-allowed; }
+.key:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 1px 0 rgba(36,18,66,.3); }
+.key:disabled { opacity: .35; cursor: not-allowed; }
 
-/* ================================================================= start */
-.start { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem; }
-.start__card {
-  width: min(560px, 100%);
-  background: linear-gradient(180deg, var(--baize-lift) 0%, #0F1D18 100%);
-  border: 1px solid var(--rule);
-  border-radius: var(--r);
-  box-shadow: 0 30px 70px rgba(0,0,0,.5);
-  padding: 2.4rem 2.2rem;
-  display: grid; gap: 1.3rem;
+/* ================================================================ start */
+.start { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem .9rem; }
+.start__inner { width: min(560px, 100%); display: grid; gap: 1.1rem; text-align: center; justify-items: center; }
+.start h1 { font-size: clamp(2.6rem, 11vw, 3.6rem); font-weight: 900; line-height: .95; }
+.start h1 em { display: block; font-style: normal; color: var(--zap); }
+.lede { font-size: 1.1rem; line-height: 1.45; font-weight: 600; opacity: .95; max-width: 22ch; }
+
+.steps { display: flex; gap: .4rem; flex-wrap: wrap; justify-content: center; }
+.steps li {
+  background: rgba(255,255,255,.16); border-radius: 999px;
+  padding: .4rem .85rem; font-size: .85rem; font-weight: 800;
 }
-.wordmark { display: grid; gap: .5rem; }
-.wordmark__rule { height: 1px; background: linear-gradient(90deg, var(--brass), transparent); }
-.wordmark h1 {
-  font-family: var(--serif); font-weight: 400;
-  font-size: clamp(2.2rem, 7vw, 2.9rem); letter-spacing: -.015em;
+.steps li b { color: var(--zap); margin-right: .3rem; }
+
+.rivals { display: grid; gap: .45rem; width: 100%; }
+.rival {
+  display: flex; align-items: center; gap: .6rem;
+  background: rgba(255,255,255,.12); border-radius: var(--round-sm);
+  padding: .6rem .8rem; font-size: .95rem; font-weight: 600; text-align: left;
 }
-.wordmark h1 em { display: block; font-style: italic; color: var(--brass-lit); }
+.rival .dot { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .9rem; flex: 0 0 auto; }
+.rival b { font-weight: 800; }
+.rival span { opacity: .8; }
 
-.lede { color: var(--sage); line-height: 1.65; font-size: 1rem; }
-.lede b { color: var(--bone); font-weight: 600; }
-
-/* Numbered because the round genuinely is a sequence: bid, reveal, pitch, vote. */
-.steps { display: grid; gap: .7rem; }
-.steps li { display: grid; grid-template-columns: 1.5rem 1fr; gap: .7rem; align-items: baseline; }
-.steps .n { font-family: var(--mono); font-size: .8rem; color: var(--brass); }
-.steps b { color: var(--bone); font-weight: 600; }
-.steps span { color: var(--sage); font-size: .92rem; line-height: 1.5; }
-
-.rivals { display: grid; gap: .5rem; border-top: 1px solid var(--rule-soft); padding-top: 1.2rem; }
-.rival { display: grid; grid-template-columns: 1.6rem 1fr; gap: .6rem; align-items: baseline; font-size: .9rem; color: var(--sage); }
-.rival b { color: var(--bone); font-weight: 600; }
-.rival i { font-style: normal; font-size: 1.1rem; }
-
-/* ================================================================ topbar */
+/* =============================================================== topbar */
 .topbar {
-  position: sticky; top: 0; z-index: 30;
-  display: flex; align-items: center; justify-content: space-between; gap: .75rem;
-  padding: .55rem 1rem;
-  border-bottom: 1px solid var(--rule);
-  background: rgba(11,21,17,.9); backdrop-filter: blur(10px);
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+  padding: .6rem .9rem;
+  background: rgba(36,18,66,.4); backdrop-filter: blur(12px);
 }
-.topbar__side { display: flex; align-items: center; gap: .6rem; }
-.phase {
-  font-family: var(--serif); font-size: 1.05rem; letter-spacing: .01em; color: var(--brass-lit);
-}
-.round { font-family: var(--mono); font-size: .72rem; color: var(--sage); letter-spacing: .08em; }
+.topbar__l { display: flex; align-items: center; gap: .5rem; }
+.phase { font-weight: 800; font-size: 1rem; }
+.round { font-size: .7rem; font-weight: 800; letter-spacing: .1em; opacity: .65; }
 
 .clock {
-  min-width: 3.2rem; text-align: center;
-  font-family: var(--mono); font-variant-numeric: tabular-nums;
-  font-size: 1.2rem; font-weight: 600; color: var(--bone);
-  padding: .15rem .6rem; border-radius: var(--r);
-  border: 1px solid var(--rule); background: #0B1512;
+  min-width: 2.9rem; text-align: center;
+  font-weight: 900; font-size: 1.3rem; font-variant-numeric: tabular-nums;
+  background: rgba(255,255,255,.18); border-radius: 999px; padding: .1rem .6rem;
 }
-.clock.urgent { color: #F0836A; border-color: rgba(168,52,31,.65); background: rgba(168,52,31,.14); }
+.clock.urgent { background: var(--hot); animation: throb .8s ease-in-out infinite; }
+@keyframes throb { 50% { transform: scale(1.12); } }
 
-.wrap { max-width: 1140px; margin: 0 auto; padding: 1.4rem 1rem 3rem; }
+.stage { padding-top: 1rem; }
 
-/* =============================================================== auction */
-.auction { display: grid; grid-template-columns: minmax(0,1fr) 296px; gap: 1.4rem; align-items: start; }
-.lot-col { display: grid; gap: 1rem; }
-
-/* --- the catalogue card ------------------------------------------------- */
+/* ============================================================== auction */
 .lot {
-  position: relative;
-  background:
-    radial-gradient(120% 90% at 80% 0%, #FBF6EC 0%, transparent 55%),
-    linear-gradient(168deg, var(--paper) 0%, var(--paper-deep) 100%);
-  color: var(--paper-ink);
-  border-radius: 2px;
-  padding: 1.6rem 1.7rem 1.5rem;
-  box-shadow:
-    0 1px 0 rgba(255,255,255,.5) inset,
-    0 26px 50px rgba(0,0,0,.5),
-    0 2px 0 rgba(0,0,0,.25);
-  display: grid; grid-template-columns: 148px minmax(0,1fr); gap: 1.5rem;
-  align-items: center; min-height: 232px;
-  animation: deal .42s cubic-bezier(.16,.9,.3,1);
+  position: relative; overflow: hidden;
+  background: var(--card); color: var(--ink);
+  border-radius: var(--round); padding: 1.4rem 1.2rem 1.2rem;
+  box-shadow: var(--shadow);
+  display: grid; justify-items: center; text-align: center; gap: .25rem;
+  animation: pop .35s cubic-bezier(.2,1.3,.4,1);
 }
-@keyframes deal {
-  from { opacity: 0; transform: translateY(14px) rotate(-.7deg); }
-  to   { opacity: 1; transform: none; }
-}
-/* Paper grain. */
-.lot::before {
-  content: ''; position: absolute; inset: 0; border-radius: 2px; pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  opacity: .05; mix-blend-mode: multiply;
-}
-.lot.is-passed { filter: saturate(.55) brightness(.86); }
+@keyframes pop { from { opacity: 0; transform: scale(.9) translateY(10px); } }
+.lot.passed { opacity: .65; }
 
-.lot__no {
-  position: absolute; top: 1rem; right: 1.2rem;
-  font-family: var(--mono); font-size: .7rem; letter-spacing: .14em;
-  color: var(--paper-soft);
+.lot__face {
+  width: 92px; height: 92px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 3rem;
+  background: linear-gradient(150deg, #FFE9F4, #E8DEFF);
+  margin-bottom: .5rem;
 }
-
-/* Catalogue plate: the portrait sits in a ruled box, like a printed photo. */
-.plate {
-  aspect-ratio: 1; display: grid; place-items: center;
-  font-size: 3.6rem; line-height: 1;
-  background: linear-gradient(160deg, #FFFBF2, #E8DDC7);
-  border: 1px solid rgba(27,23,18,.16);
-  box-shadow: inset 0 0 0 4px rgba(255,255,255,.55), 0 1px 2px rgba(0,0,0,.12);
-}
-
-.lot__body { display: grid; gap: .5rem; align-content: start; min-width: 0; }
 .lot__cat {
-  font-size: .62rem; letter-spacing: .22em; text-transform: uppercase;
-  color: var(--brass-dim); font-weight: 700;
+  font-size: .66rem; font-weight: 900; letter-spacing: .16em; text-transform: uppercase;
+  color: #fff; background: var(--magenta); border-radius: 999px; padding: .22rem .7rem;
 }
-.lot__name {
-  font-family: var(--serif); font-weight: 400;
-  font-size: clamp(1.7rem, 3.6vw, 2.5rem); letter-spacing: -.015em; line-height: 1.05;
-}
-.lot__role { font-family: var(--serif); font-style: italic; font-size: 1.05rem; color: var(--paper-soft); }
-.lot__rule { height: 1px; background: rgba(27,23,18,.18); margin: .35rem 0 .1rem; }
-.traits { display: flex; flex-wrap: wrap; gap: .3rem .5rem; }
+.lot__name { font-size: clamp(1.6rem, 6.5vw, 2.1rem); font-weight: 900; margin-top: .35rem; }
+.lot__role { color: var(--ink-soft); font-weight: 700; font-size: .95rem; }
+.traits { display: flex; flex-wrap: wrap; gap: .35rem; justify-content: center; margin-top: .7rem; }
 .traits li {
-  font-size: .78rem; color: var(--paper-ink);
-  border: 1px solid rgba(27,23,18,.22);
-  padding: .2rem .55rem; border-radius: 999px;
-  background: rgba(255,255,255,.4);
+  font-size: .78rem; font-weight: 700; color: var(--ink);
+  background: var(--card-2); border-radius: 999px; padding: .28rem .65rem;
 }
 
-/* The stamp. Reserved oxblood, and the only thing on screen that shouts. */
-/* Offset down-right so it lands like a stamp on a docket and leaves the
-   name legible -- the point is the moment, not obscuring the lot. */
+/* The hammer moment. */
 .stamp {
-  position: absolute; top: 66%; left: 68%;
-  font-family: var(--serif); font-size: clamp(2.4rem, 7vw, 3.6rem);
-  letter-spacing: .12em; text-transform: uppercase; font-weight: 700;
-  color: var(--oxblood);
-  border: 4px double var(--oxblood);
-  padding: .1em .3em; border-radius: 4px;
-  opacity: .82; pointer-events: none;
-  transform: translate(-50%, -50%) rotate(-11deg);
-  animation: slam .28s cubic-bezier(.2,1.4,.4,1);
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background: rgba(36,18,66,.82); color: #fff;
+  font-size: clamp(2.2rem, 10vw, 3rem); font-weight: 900; letter-spacing: .04em;
+  animation: slam .3s cubic-bezier(.2,1.5,.4,1);
 }
-.stamp--passed { color: var(--paper-soft); border-color: var(--paper-soft); opacity: .5; font-size: clamp(1.4rem, 4vw, 2rem); }
-@keyframes slam {
-  from { opacity: 0; transform: translate(-50%,-50%) rotate(-11deg) scale(2.4); }
-  to   { opacity: .82; transform: translate(-50%,-50%) rotate(-11deg) scale(1); }
+.stamp small { display: block; font-size: .95rem; font-weight: 700; opacity: .85; margin-top: .3rem; letter-spacing: 0; }
+.stamp.sold { color: var(--zap); }
+@keyframes slam { from { opacity: 0; transform: scale(1.6); } }
+
+.board { display: grid; gap: .7rem; margin-top: .9rem; }
+.board__top { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+.board__fig { font-size: 2.6rem; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; }
+.board__fig.empty { opacity: .45; font-size: 2rem; }
+.board__who { font-size: .9rem; font-weight: 700; opacity: .85; text-align: right; }
+.hint { font-size: .82rem; font-weight: 600; opacity: .7; text-align: center; }
+
+/* Roster as five slots, filling up. */
+.slots { display: grid; grid-template-columns: repeat(5, 1fr); gap: .4rem; margin-top: 1rem; }
+.slot {
+  aspect-ratio: 1; border-radius: var(--round-sm);
+  display: grid; place-items: center; font-size: 1.4rem;
+  background: rgba(255,255,255,.14);
 }
+.slot.filled { background: var(--card); }
+.slot.empty { border: 2px dashed rgba(255,255,255,.3); background: transparent; }
 
-.lot-meta { display: flex; justify-content: space-between; align-items: baseline; gap: 1rem; }
-.lot-meta .status { font-size: .72rem; letter-spacing: .18em; text-transform: uppercase; font-weight: 700; color: var(--brass); }
-.status.sold { color: var(--moss); }
-.status.passed { color: var(--sage); }
+.purse { display: flex; justify-content: space-between; gap: .5rem; margin-top: .8rem; }
+.purse div { flex: 1; background: rgba(255,255,255,.12); border-radius: var(--round-sm); padding: .55rem .7rem; }
+.purse strong { display: block; font-size: 1.3rem; font-weight: 900; font-variant-numeric: tabular-nums; }
 
-/* --- the board ---------------------------------------------------------- */
-.board {
-  border: 1px solid var(--rule); border-radius: var(--r);
-  background: linear-gradient(180deg, #0C1815, #101E19);
-  padding: 1.1rem 1.2rem; display: grid; gap: .9rem;
+.room { display: grid; gap: .35rem; margin-top: 1rem; }
+.room li {
+  display: flex; align-items: center; gap: .55rem;
+  background: rgba(255,255,255,.1); border-radius: 999px; padding: .4rem .75rem;
+  font-size: .88rem; font-weight: 700;
 }
-.board__row { display: flex; align-items: baseline; gap: .7rem; flex-wrap: wrap; margin-top: .3rem; }
-.board__figure {
-  font-family: var(--mono); font-variant-numeric: tabular-nums;
-  font-size: 2.6rem; font-weight: 600; line-height: 1; color: var(--brass-lit);
-  text-shadow: 0 0 26px rgba(233,188,99,.28);
+.room li.high { background: var(--zap); color: var(--ink); }
+.room .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room .amt { font-variant-numeric: tabular-nums; opacity: .8; }
+.room li.high .amt { opacity: 1; }
+.avatar { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: .75rem; flex: 0 0 auto; }
+
+/* =============================================================== reveal */
+.reveal { display: grid; justify-items: center; text-align: center; gap: 1rem; padding-top: 8vh; }
+.reveal__burst {
+  width: 120px; height: 120px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 3.6rem;
+  background: var(--zap);
+  box-shadow: 0 0 0 12px rgba(255,225,77,.25), 0 0 0 26px rgba(255,225,77,.12);
+  animation: burst .5s cubic-bezier(.2,1.4,.4,1) both;
 }
-/* With no bid yet the figure is a placeholder, not a number to read. */
-.board__figure.empty { color: var(--sage); opacity: .45; text-shadow: none; font-size: 2rem; }
-.board__holder { color: var(--sage); font-size: .88rem; }
-.board__holder b { color: var(--bone); font-weight: 600; }
-.keys { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: .45rem; }
-.hint { color: var(--sage); font-size: .82rem; line-height: 1.45; }
-
-/* --- side furniture ----------------------------------------------------- */
-.side { display: grid; gap: 1rem; }
-.panel { border: 1px solid var(--rule); border-radius: var(--r); background: var(--baize-lift); padding: .95rem 1rem; display: grid; gap: .75rem; }
-.panel > .label { border-bottom: 1px solid var(--rule-soft); padding-bottom: .55rem; }
-
-.purse { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
-.purse div { background: #0D1815; border: 1px solid var(--rule-soft); border-radius: var(--r); padding: .5rem .65rem; display: grid; gap: .1rem; }
-.purse strong { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 1.35rem; color: var(--bone); font-weight: 600; }
-
-/* Catalogue-style rows with dotted leaders running to the price. */
-.rows { display: grid; gap: .1rem; }
-.rows li { display: flex; align-items: baseline; gap: .4rem; padding: .38rem .1rem; font-size: .9rem; }
-.rows li + li { border-top: 1px solid var(--rule-soft); }
-.rows .who { display: flex; align-items: baseline; gap: .4rem; min-width: 0; }
-.rows .who span { flex: 0 0 auto; }
-.rows .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.leader { flex: 1; border-bottom: 1px dotted rgba(143,160,151,.4); transform: translateY(-.25em); min-width: .8rem; }
-.amt { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: .84rem; color: var(--brass); flex: 0 0 auto; }
-.amt.free { color: var(--sage); font-family: var(--sans); font-style: italic; }
-.rows li.empty { color: var(--sage); opacity: .5; font-style: italic; }
-.rows li.you .nm { color: var(--brass-lit); font-weight: 600; }
-.rows li.high { background: rgba(200,150,62,.1); box-shadow: inset 2px 0 0 var(--brass); }
-
-.log { display: grid; gap: .1rem; font-size: .84rem; }
-.log li { display: flex; align-items: baseline; gap: .4rem; padding: .32rem .1rem; color: var(--sage); }
-.log li + li { border-top: 1px solid var(--rule-soft); }
-.log b { color: var(--bone); font-weight: 600; }
-
-/* ================================================================ reveal */
-.reveal { max-width: 680px; margin: 5vh auto 0; display: grid; gap: 1.2rem; justify-items: center; text-align: center; }
-.reveal__kicker { animation: fade .5s both; }
-.reveal__seal {
-  width: 74px; height: 74px; border-radius: 50%;
-  display: grid; place-items: center; font-size: 2rem;
-  background: radial-gradient(circle at 35% 30%, #C4442C, #7E2314);
-  box-shadow: 0 10px 26px rgba(0,0,0,.45), inset 0 2px 6px rgba(255,255,255,.28);
-  animation: press .5s .1s both cubic-bezier(.2,1.3,.4,1);
-}
-@keyframes press { from { transform: scale(1.9); opacity: 0; } to { transform: none; opacity: 1; } }
-@keyframes fade { from { opacity: 0; transform: translateY(8px); } }
-.reveal h2 {
-  font-family: var(--serif); font-weight: 400; font-style: italic;
-  font-size: clamp(2.3rem, 7vw, 3.4rem); color: var(--brass-lit);
-  animation: fade .6s .25s both;
-}
-.reveal__setup { font-family: var(--serif); font-size: 1.15rem; line-height: 1.6; max-width: 46ch; animation: fade .6s .4s both; }
+@keyframes burst { from { transform: scale(0); } }
+.reveal h2 { font-size: clamp(2.2rem, 9vw, 3rem); font-weight: 900; animation: rise .5s .15s both; }
+.reveal p { font-size: 1.1rem; font-weight: 600; line-height: 1.45; max-width: 26ch; animation: rise .5s .3s both; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } }
 .chips { display: flex; gap: .4rem; flex-wrap: wrap; justify-content: center; }
-/* The staged entrance belongs to the reveal only -- the same chips appear on
-   the pitch and vote strips, where they must be visible immediately. */
-.reveal .chips { animation: fade .6s .55s both; }
-.strip .chips { justify-content: flex-start; }
-.chips li {
-  font-size: .76rem; color: var(--brass-lit);
-  border: 1px solid rgba(200,150,62,.35); background: rgba(200,150,62,.09);
-  padding: .24rem .6rem; border-radius: 999px;
-}
-.hairline { width: min(280px, 60%); height: 1px; background: linear-gradient(90deg, transparent, var(--brass-dim), transparent); }
+.chips li { background: rgba(255,255,255,.18); border-radius: 999px; padding: .3rem .75rem; font-size: .82rem; font-weight: 700; }
+.reveal .chips { animation: rise .5s .45s both; }
 
-/* =========================================================== pitch/vote */
-.strip {
-  display: flex; align-items: center; gap: 1.1rem; flex-wrap: wrap;
-  border: 1px solid var(--rule); border-left: 3px solid var(--brass);
-  border-radius: var(--r); background: var(--baize-lift);
-  padding: .9rem 1.1rem; margin-bottom: 1.4rem;
+/* ========================================================== pitch/vote */
+.banner {
+  display: flex; align-items: center; gap: .75rem;
+  background: rgba(255,255,255,.14); border-radius: var(--round-sm);
+  padding: .7rem .9rem; margin-bottom: 1rem;
 }
-.strip__emoji { font-size: 1.9rem; line-height: 1; }
-.strip > div { flex: 1 1 260px; min-width: 0; }
-.strip h2 { font-family: var(--serif); font-style: italic; font-size: 1.4rem; color: var(--brass-lit); }
-.strip p { color: var(--sage); font-size: .92rem; line-height: 1.5; margin-top: .15rem; }
+.banner__face { font-size: 1.7rem; flex: 0 0 auto; }
+.banner h2 { font-size: 1.15rem; font-weight: 900; }
+.banner p { font-size: .85rem; font-weight: 600; opacity: .8; margin-top: .1rem; }
 
-.prompt { font-family: var(--serif); font-size: 1.45rem; margin-bottom: 1rem; }
-.prompt span { color: var(--sage); font-size: 1rem; font-family: var(--sans); }
+.prompt { font-size: 1.35rem; font-weight: 900; margin-bottom: .2rem; }
+.prompt + .sub { font-size: .9rem; font-weight: 600; opacity: .75; margin-bottom: .8rem; }
 
-/* MVP picks: five small catalogue cards, dealt in sequence. */
-.mvp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(154px,1fr)); gap: .7rem; }
-.mvp {
-  position: relative; text-align: center;
-  display: grid; gap: .2rem; justify-items: center;
-  background: linear-gradient(170deg, #17282212, #0F1C17);
-  border: 1px solid var(--rule); border-radius: var(--r);
-  color: var(--bone); padding: 1.1rem .7rem 1rem;
-  transition: transform .12s ease, border-color .15s ease, background .15s ease;
-  animation: deal .35s both;
+/* Your five as tappable rows: full names, no truncation, one thumb-sized
+   target each. Five across only fits initials on a phone. */
+.crew-pick { display: grid; gap: .35rem; margin-bottom: 1.1rem; }
+.pick {
+  position: relative; width: 100%; text-align: left;
+  border: 0; border-radius: var(--round-sm);
+  background: rgba(255,255,255,.14); color: #fff;
+  padding: .55rem .8rem;
+  display: flex; align-items: center; gap: .6rem;
+  transition: transform .12s ease, background .15s ease;
 }
-.mvp:nth-child(1) { animation-delay: .02s } .mvp:nth-child(2) { animation-delay: .07s }
-.mvp:nth-child(3) { animation-delay: .12s } .mvp:nth-child(4) { animation-delay: .17s }
-.mvp:nth-child(5) { animation-delay: .22s }
-.mvp:hover:not(:disabled) { transform: translateY(-3px); border-color: var(--brass-dim); }
-.mvp__face { font-size: 2rem; line-height: 1; margin-bottom: .35rem; }
-.mvp__name { font-family: var(--serif); font-size: 1.05rem; line-height: 1.2; }
-.mvp__role { color: var(--sage); font-size: .74rem; line-height: 1.3; }
-.mvp.picked {
-  background: linear-gradient(170deg, rgba(200,150,62,.16), rgba(200,150,62,.05));
-  border-color: var(--brass);
-  box-shadow: 0 0 0 1px var(--brass), 0 12px 30px rgba(0,0,0,.35);
+.pick:hover { transform: translateX(2px); background: rgba(255,255,255,.22); }
+.pick__face { font-size: 1.3rem; flex: 0 0 auto; }
+.pick__nm { font-size: .95rem; font-weight: 800; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The name must never be the thing that truncates, so the role yields first
+   and drops out entirely on a phone. */
+.pick__role {
+  font-size: .72rem; font-weight: 700; opacity: .7;
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.mvp__star { position: absolute; top: .4rem; right: .55rem; color: var(--brass-lit); opacity: 0; transition: opacity .15s ease; }
-.mvp.picked .mvp__star { opacity: 1; }
+@media (max-width: 480px) { .pick__role { display: none; } }
+.pick.starred { background: var(--zap); color: var(--ink); }
+.pick.starred .pick__role { opacity: .8; }
+.pick__star { font-size: .95rem; opacity: 0; flex: 0 0 auto; }
+.pick.starred .pick__star { opacity: 1; }
 
-.pitch-foot { display: flex; gap: .5rem; margin: 1.1rem 0; flex-wrap: wrap; }
-.pitch-foot input {
-  flex: 1 1 240px; font: inherit; font-family: var(--serif); font-size: 1rem;
-  color: var(--bone); background: #0C1815;
-  border: 1px solid var(--rule); border-radius: var(--r); padding: .7rem .8rem;
+.writer { background: var(--card); border-radius: var(--round); padding: 1rem; box-shadow: var(--shadow); }
+.writer textarea {
+  width: 100%; border: 0; resize: none; font: inherit;
+  font-size: 1.1rem; font-weight: 600; line-height: 1.45; color: var(--ink);
+  background: transparent; padding: 0;
+  overflow: hidden; /* it grows to fit instead of scrolling away from you */
 }
-.pitch-foot input::placeholder { color: var(--sage); opacity: .7; font-style: italic; }
+.writer textarea:focus { outline: none; }
+.writer textarea::placeholder { color: var(--ink-faint); font-weight: 500; }
+.writer__foot { display: flex; align-items: center; justify-content: space-between; margin-top: .7rem; }
+.count { font-size: .8rem; font-weight: 800; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.count.close { color: var(--hot); }
 
-/* Always four crews here, so two columns beat an auto-fill that strands one. */
-.votes { display: grid; gap: 1rem; grid-template-columns: 1fr; }
-@media (min-width: 820px) { .votes { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-.vote-card {
-  border: 1px solid var(--rule); border-radius: var(--r);
-  background: var(--baize-lift); padding: 1.1rem;
-  display: grid; gap: .8rem; align-content: start;
-  transition: border-color .15s ease, transform .12s ease;
+/* Voting: the defence is the headline, the crew is the small print. */
+.answers { display: grid; gap: .8rem; }
+.answer {
+  background: var(--card); color: var(--ink);
+  border-radius: var(--round); padding: 1.1rem;
+  box-shadow: var(--shadow);
+  display: grid; gap: .7rem;
+  border-left: 8px solid var(--tint, var(--magenta));
+  animation: pop .3s both;
 }
-.vote-card:hover { border-color: var(--rule); transform: translateY(-2px); }
-.vote-card.picked { border-color: var(--brass); box-shadow: 0 0 0 1px var(--brass); }
-.vote-card__head { display: flex; align-items: baseline; justify-content: space-between; gap: .6rem; }
-.vote-card__head h4 { font-family: var(--serif); font-size: 1.25rem; font-weight: 400; }
-.crew { display: grid; gap: .1rem; }
-.crew li { display: flex; align-items: baseline; gap: .4rem; font-size: .86rem; padding: .22rem 0; }
-.crew li + li { border-top: 1px solid var(--rule-soft); }
-.crew .nm { color: var(--sage); }
-.crew li.is-mvp .nm { color: var(--brass-lit); font-weight: 600; }
-.crew li.is-mvp::before { content: '★'; color: var(--brass); font-size: .7rem; }
-.line {
-  font-family: var(--serif); font-style: italic; font-size: 1rem; line-height: 1.5;
-  color: var(--bone); padding-left: .8rem; border-left: 2px solid var(--brass-dim);
+.answer:nth-child(2) { animation-delay: .06s } .answer:nth-child(3) { animation-delay: .12s }
+.answer:nth-child(4) { animation-delay: .18s }
+.answer__who { display: flex; align-items: center; gap: .5rem; font-weight: 900; font-size: .95rem; }
+.answer__who .avatar { width: 24px; height: 24px; }
+.answer__text { font-size: 1.2rem; font-weight: 700; line-height: 1.35; }
+.answer__text.none { color: var(--ink-faint); font-weight: 600; font-style: italic; font-size: 1rem; }
+.answer__crew { display: flex; flex-wrap: wrap; gap: .3rem; }
+.answer__crew span {
+  font-size: .74rem; font-weight: 700; color: var(--ink-soft);
+  background: var(--card-2); border-radius: 999px; padding: .22rem .55rem;
 }
+.answer__crew span.star { background: var(--zap); color: var(--ink); }
+.answer.picked { outline: 4px solid var(--zap); }
+.answer .btn { background: var(--ink); color: #fff; box-shadow: 0 4px 0 rgba(36,18,66,.35); }
+.answer .btn.on { background: var(--zap); color: var(--ink); box-shadow: 0 4px 0 var(--zap-deep); }
+.answer .mine { font-size: .8rem; font-weight: 800; color: var(--ink-faint); text-align: center; }
 
-/* =============================================================== results */
-.res-head { display: grid; gap: .3rem; margin-bottom: 1.4rem; }
-.res-head h2 { font-family: var(--serif); font-weight: 400; font-size: clamp(1.8rem, 5vw, 2.4rem); }
-.res-head h2 b { font-style: italic; font-weight: 400; color: var(--brass-lit); }
+/* ============================================================== results */
+.res-head { text-align: center; display: grid; gap: .3rem; margin-bottom: 1.2rem; }
+.res-head h2 { font-size: clamp(1.9rem, 8vw, 2.5rem); font-weight: 900; }
+.res-head .label { opacity: .8; }
 
-.results { display: grid; gap: .7rem; }
-.result {
-  display: grid; grid-template-columns: 2.4rem minmax(0,1fr) auto; gap: 1rem; align-items: center;
-  border: 1px solid var(--rule); border-radius: var(--r);
-  background: var(--baize-lift); padding: 1rem 1.2rem;
+.scores { display: grid; gap: .6rem; }
+.score {
+  display: grid; grid-template-columns: auto 1fr auto; gap: .8rem; align-items: center;
+  background: rgba(255,255,255,.13); border-radius: var(--round-sm); padding: .8rem 1rem;
 }
-.result.win {
-  border-color: var(--brass);
-  background: linear-gradient(100deg, rgba(200,150,62,.14), var(--baize-lift) 55%);
-}
-.result__rank { font-family: var(--serif); font-size: 1.9rem; color: var(--sage); text-align: center; line-height: 1; }
-.result.win .result__rank { color: var(--brass-lit); }
-.result__name { font-family: var(--serif); font-size: 1.25rem; }
-.result__sub { color: var(--sage); font-size: .8rem; font-family: var(--mono); letter-spacing: .02em; margin-top: .1rem; }
-.result__score { text-align: right; }
-.result__score strong { font-family: var(--mono); font-variant-numeric: tabular-nums; font-size: 1.5rem; color: var(--brass-lit); font-weight: 600; }
-.result .crew { margin-top: .5rem; }
-.actions { display: flex; gap: .7rem; margin-top: 1.6rem; flex-wrap: wrap; }
+.score.win { background: var(--zap); color: var(--ink); }
+.score__rank { font-size: 1.4rem; font-weight: 900; opacity: .55; font-variant-numeric: tabular-nums; }
+.score.win .score__rank { opacity: .8; }
+.score__nm { font-weight: 900; font-size: 1.05rem; display: flex; align-items: center; gap: .45rem; }
+.score__sub { font-size: .8rem; font-weight: 700; opacity: .7; margin-top: .15rem; }
+.score__line { font-size: .88rem; font-weight: 600; opacity: .85; margin-top: .35rem; font-style: italic; }
+.score__pts { font-size: 1.5rem; font-weight: 900; font-variant-numeric: tabular-nums; text-align: right; }
 
-.footnote {
-  margin: 2.6rem auto 0; max-width: 58ch; text-align: center;
-  color: var(--sage); font-size: .85rem; line-height: 1.7;
-  border-top: 1px solid var(--rule-soft); padding-top: 1.4rem;
-}
-.footnote code { font-family: var(--mono); color: var(--brass-lit); font-size: .95em; }
+.footnote { text-align: center; font-size: .82rem; font-weight: 600; opacity: .65; margin-top: 1.8rem; line-height: 1.6; }
+.footnote code { font-family: var(--mono); background: rgba(255,255,255,.15); padding: .1rem .35rem; border-radius: 5px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
-/* ============================================================ responsive */
-@media (max-width: 900px) {
-  .auction { grid-template-columns: 1fr; }
-}
-@media (max-width: 560px) {
-  .wrap { padding: 1rem .75rem 2.5rem; }
-  .lot { grid-template-columns: 1fr; padding: 1.2rem 1.1rem; gap: 1rem; }
-  .plate { aspect-ratio: auto; padding: .8rem; font-size: 2.6rem; }
-  .lot__no { top: .7rem; right: .8rem; }
-  .board__figure { font-size: 2.1rem; }
-  .mvp-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .prompt { font-size: 1.2rem; }
-  .start__card { padding: 1.6rem 1.3rem; }
-  .result { grid-template-columns: 1.8rem minmax(0,1fr) auto; gap: .7rem; padding: .85rem .9rem; }
+@media (max-width: 400px) {
+  .pick__nm { font-size: .55rem; }
+  .lot__face { width: 76px; height: 76px; font-size: 2.4rem; }
 }
 </style>
 
-<!-- ================================================================ START -->
+<!-- =============================================================== START -->
 <section id="start" class="start">
-  <div class="start__card">
-    <div class="wordmark">
-      <p class="label">Lots 1–27 · sold as seen</p>
-      <h1>Blind Scenario <em>Auction</em></h1>
-      <div class="wordmark__rule"></div>
-    </div>
-
-    <p class="lede">
-      Draft five people at auction and spend every credit you have.
-      <b>Only then</b> do you learn what you needed them for — an outbreak, an IPO,
-      a Mars transit, a murder trial.
-    </p>
+  <div class="start__inner">
+    <h1>Blind Scenario<em>Auction</em></h1>
+    <p class="lede">Draft five people blind. Then find out what you needed them for.</p>
 
     <ul class="steps">
-      <li><span class="n">01</span><span><b>Bid.</b> Lots come up one at a time. Nobody knows the scenario yet.</span></li>
-      <li><span class="n">02</span><span><b>Reveal.</b> The envelope opens once every roster is full.</span></li>
-      <li><span class="n">03</span><span><b>Pitch.</b> Name the one of your five who wins this.</span></li>
-      <li><span class="n">04</span><span><b>Vote.</b> Best crew takes the round.</span></li>
+      <li><b>1</b>Bid</li>
+      <li><b>2</b>Reveal</li>
+      <li><b>3</b>Defend</li>
+      <li><b>4</b>Vote</li>
     </ul>
 
     <div class="rivals">
-      <p class="label">In the room with you</p>
-      <div class="rival"><i>🪙</i><div><b>Priya</b> — pays up for a big name, early.</div></div>
-      <div class="rival"><i>🧊</i><div><b>Tomás</b> — sits on his money, waits for scraps.</div></div>
-      <div class="rival"><i>🔥</i><div><b>Nkechi</b> — wants anyone who survives outdoors.</div></div>
+      <div class="rival"><span class="dot" style="background:var(--p2)">🪙</span><div><b>Priya</b> <span>pays up early</span></div></div>
+      <div class="rival"><span class="dot" style="background:var(--p3)">🧊</span><div><b>Tomás</b> <span>waits for scraps</span></div></div>
+      <div class="rival"><span class="dot" style="background:var(--p4)">🔥</span><div><b>Nkechi</b> <span>wants survivors</span></div></div>
     </div>
 
-    <button id="btn-start" class="btn btn--brass btn--big">Open the bidding</button>
-    <p class="label" style="text-align:center">100 credits · five slots · about five minutes</p>
+    <button id="btn-start" class="btn btn--zap btn--big">Open the bidding</button>
+    <p class="label">100 credits · five slots</p>
   </div>
 </section>
 
-<!-- ================================================================= GAME -->
+<!-- ================================================================ GAME -->
 <section id="game" class="hidden">
   <header class="topbar">
-    <div class="topbar__side">
-      <span id="phase-name" class="phase">The auction</span>
-      <span id="round-no" class="round">ROUND 1</span>
+    <div class="topbar__l">
+      <span id="phase-name" class="phase">Auction</span>
+      <span id="round-no" class="round">R1</span>
     </div>
-    <div class="topbar__side">
+    <div class="topbar__l">
       <div id="clock" class="clock">0</div>
-      <button id="btn-skip" class="btn small">Skip ▸</button>
+      <button id="btn-skip" class="btn btn--ghost">Skip ▸</button>
     </div>
   </header>
 
-  <div class="wrap">
+  <div class="col stage">
     <!-- auction -->
     <div id="p-auction" class="hidden">
-      <div class="auction">
-        <div class="lot-col">
-          <div class="lot-meta">
-            <span id="lot-count" class="label"></span>
-            <span id="lot-status" class="status">On the block</span>
-          </div>
+      <p class="label" id="lot-count" style="text-align:center;margin-bottom:.6rem"></p>
 
-          <article id="lot-card" class="lot">
-            <span id="lot-no" class="lot__no"></span>
-            <div class="plate" id="lot-face">?</div>
-            <div class="lot__body">
-              <span id="lot-cat" class="lot__cat"></span>
-              <h2 id="lot-name" class="lot__name"></h2>
-              <p id="lot-role" class="lot__role"></p>
-              <div class="lot__rule"></div>
-              <ul id="lot-traits" class="traits"></ul>
-            </div>
-          </article>
+      <article id="lot-card" class="lot">
+        <div class="lot__face" id="lot-face">?</div>
+        <span class="lot__cat" id="lot-cat"></span>
+        <h2 class="lot__name" id="lot-name"></h2>
+        <p class="lot__role" id="lot-role"></p>
+        <ul class="traits" id="lot-traits"></ul>
+      </article>
 
-          <div class="board">
-            <div>
-              <span class="label">Standing bid</span>
-              <div class="board__row">
-                <strong id="bid-now" class="board__figure">—</strong>
-                <span id="bid-holder" class="board__holder">no bids yet</span>
-              </div>
-            </div>
-            <div class="keys">
-              <button class="key" data-step="1"></button>
-              <button class="key" data-step="3"></button>
-              <button class="key" data-step="5"></button>
-              <button class="key" data-step="10"></button>
-            </div>
-            <p id="bid-hint" class="hint"></p>
+      <div class="board">
+        <div class="board__top">
+          <div>
+            <p class="label">Standing bid</p>
+            <strong id="bid-now" class="board__fig">––</strong>
           </div>
+          <p id="bid-holder" class="board__who">no bids yet</p>
         </div>
-
-        <aside class="side">
-          <div class="panel">
-            <span class="label">Your roster</span>
-            <div class="purse">
-              <div><span class="label">Credits</span><strong id="my-budget">100</strong></div>
-              <div><span class="label">Max bid</span><strong id="my-max">96</strong></div>
-            </div>
-            <ul id="my-roster" class="rows"></ul>
-          </div>
-          <div class="panel">
-            <span class="label">The room</span>
-            <ul id="table-list" class="rows"></ul>
-          </div>
-          <div class="panel">
-            <span class="label">Knocked down</span>
-            <ul id="sold-log" class="log"></ul>
-          </div>
-        </aside>
+        <div class="keys">
+          <button class="key" data-step="1"></button>
+          <button class="key" data-step="3"></button>
+          <button class="key" data-step="5"></button>
+          <button class="key" data-step="10"></button>
+        </div>
+        <p id="bid-hint" class="hint"></p>
       </div>
+
+      <ul class="slots" id="my-slots"></ul>
+      <div class="purse">
+        <div><span class="label">Credits</span><strong id="my-budget">100</strong></div>
+        <div><span class="label">Ceiling</span><strong id="my-max">96</strong></div>
+      </div>
+      <ul class="room" id="room-list"></ul>
     </div>
 
     <!-- reveal -->
     <div id="p-reveal" class="hidden">
       <div class="reveal">
-        <p class="reveal__kicker label">The money is gone · the envelope is open</p>
-        <div class="reveal__seal" id="rev-emoji"></div>
+        <div class="reveal__burst" id="rev-face"></div>
         <h2 id="rev-title"></h2>
-        <div class="hairline"></div>
-        <p id="rev-setup" class="reveal__setup"></p>
-        <ul id="rev-stakes" class="chips"></ul>
+        <p id="rev-setup"></p>
+        <ul class="chips" id="rev-stakes"></ul>
       </div>
     </div>
 
     <!-- pitch -->
     <div id="p-pitch" class="hidden">
-      <div id="pitch-strip" class="strip"></div>
-      <p class="prompt">Name the one who wins this. <span>Say the rest out loud.</span></p>
-      <div id="mvp-grid" class="mvp-grid"></div>
-      <div class="pitch-foot">
-        <input id="line-input" maxlength="120" placeholder="One line, if you want (optional)" />
-        <button id="btn-ready" class="btn btn--brass" disabled>Ready</button>
+      <div id="pitch-banner" class="banner"></div>
+      <p class="prompt">Defend your five.</p>
+      <p class="sub">Star the one who wins it, then make your case in a line or two.</p>
+      <ul class="crew-pick" id="crew-pick"></ul>
+      <div class="writer">
+        <textarea id="line-input" rows="2" maxlength="160"
+          placeholder="Ramsay feeds forty people from a burnt-out supermarket. The shouting is a feature."></textarea>
+        <div class="writer__foot">
+          <span id="count" class="count">0 / 160</span>
+          <button id="btn-ready" class="btn btn--zap">Lock it in</button>
+        </div>
       </div>
     </div>
 
     <!-- vote -->
     <div id="p-vote" class="hidden">
-      <div id="vote-strip" class="strip"></div>
-      <p class="prompt">Which crew would you rather have? <span>Not your own.</span></p>
-      <div id="vote-list" class="votes"></div>
+      <div id="vote-banner" class="banner"></div>
+      <p class="prompt">Whose crew wins this?</p>
+      <p class="sub">Anyone but yourself.</p>
+      <div class="answers" id="answers"></div>
     </div>
 
     <!-- results -->
@@ -611,14 +456,11 @@ button { font: inherit; cursor: pointer; }
         <h2 id="res-headline"></h2>
         <p id="res-sub" class="label"></p>
       </div>
-      <div id="res-list" class="results"></div>
-      <div class="actions">
-        <button id="btn-again" class="btn btn--brass btn--big">Next round</button>
-      </div>
+      <div class="scores" id="scores"></div>
+      <button id="btn-again" class="btn btn--zap btn--big" style="margin-top:1.4rem">Next round</button>
       <p class="footnote">
-        This is the solo saleroom — you against three bots on one device.
-        The real game is a multiplayer server: everyone joins a room code on their own
-        phone and argues out loud. Run it with <code>npm start</code> from the repo.
+        Solo game — you against three bots.
+        For the real thing, everyone on their own phone, run <code>npm start</code> from the repo.
       </p>
     </div>
   </div>
@@ -635,7 +477,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
 const rand = (n) => Math.floor(Math.random() * n);
 const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
-const CFG = { budget: 100, roster: 5, openMs: 6500, bidMs: 4200, soldMs: 1800, passMs: 1200, revealMs: 8000 };
+const CFG = { budget: 100, roster: 5, openMs: 6500, bidMs: 4200, soldMs: 1800, passMs: 1200, revealMs: 7000, lineMax: 160 };
 
 // Which card categories a scenario rewards. Only the bots use this -- it is how
 // they judge a crew at voting time, so the vote is about fit, not coin flips.
@@ -651,24 +493,26 @@ const FAVOURS = {
   antarctic: ['Wild', 'Systems', 'Hands'], documentary: ['Shadows', 'Voice', 'Brains'],
 };
 
-const BOT_LINES = [
-  (mvp) => `${mvp} has done worse than this on a Tuesday.`,
-  (mvp) => `Everything here runs through ${mvp}. Everything.`,
-  (mvp) => `You all overpaid. I bought ${mvp}.`,
-  (mvp) => `${mvp} alone beats any four of yours.`,
-  (mvp) => `Give ${mvp} a week and this is solved.`,
+// Bot defences: a stem plus the reason their star fits, so they read like
+// somebody actually arguing rather than a canned line.
+const BOT_DEFENCE = [
+  (n, t) => `${n} has done worse than this on a Tuesday. ${t} — that is the whole job.`,
+  (n, t) => `Everything here runs through ${n}. ${t}, and the rest of us just carry things.`,
+  (n, t) => `You all bought famous. I bought useful: ${n.split(' ')[0]} ${t.toLowerCase()}.`,
+  (n, t) => `${t}. That is ${n}, and that is why this works.`,
+  (n, t) => `Give ${n} a week. ${t} beats whatever you five are planning.`,
 ];
 
 /* ------------------------------------------------------------------ state */
 let G = null;
-let timer = null;   // phase deadline (epoch ms)
+let timer = null;
 
 function newGame(carry) {
   const players = [
-    { id: 'you', name: 'You', human: true, emoji: '🎯', taste: null, nerve: 1 },
-    { id: 'priya', name: 'Priya', emoji: '🪙', taste: ['Voice', 'Brains'], nerve: 1.25 },
-    { id: 'tomas', name: 'Tomás', emoji: '🧊', taste: ['Systems', 'Shadows'], nerve: 0.72 },
-    { id: 'nkechi', name: 'Nkechi', emoji: '🔥', taste: ['Wild', 'Muscle'], nerve: 1.05 },
+    { id: 'you', name: 'You', human: true, emoji: '🎯', tint: 'var(--p1)', taste: null, nerve: 1 },
+    { id: 'priya', name: 'Priya', emoji: '🪙', tint: 'var(--p2)', taste: ['Voice', 'Brains'], nerve: 1.25 },
+    { id: 'tomas', name: 'Tomás', emoji: '🧊', tint: 'var(--p3)', taste: ['Systems', 'Shadows'], nerve: 0.72 },
+    { id: 'nkechi', name: 'Nkechi', emoji: '🔥', tint: 'var(--p4)', taste: ['Wild', 'Muscle'], nerve: 1.05 },
   ].map((p) => ({
     ...p,
     budget: CFG.budget, roster: [], mvpId: null, line: '', vote: null, votes: 0,
@@ -713,7 +557,6 @@ function nextLot() {
   G.idx++;
   const card = G.lots[G.idx];
   G.lot = { card, bid: 0, holder: null, status: 'bidding' };
-  // Each bot privately values this lot before anyone speaks.
   for (const p of G.players.slice(1)) {
     const base = card.t * 15 + rand(16);
     const bonus = p.taste.includes(card.g) ? 16 : 0;
@@ -776,7 +619,6 @@ function botsThink() {
     const want = Math.min(p.value, maxBid(p));
     const next = minBid();
     if (next > want) continue;
-    // Late in the auction a bot with slots to fill gets less fussy.
     const desperate = emptySlots(p) >= G.lots.length - G.idx;
     if (!desperate && Math.random() > 0.55) continue;
     // Jump a third of the way to what they think it is worth. Creeping up a
@@ -788,16 +630,16 @@ function botsThink() {
 }
 
 function botsPitch() {
-  const unused = shuffle(BOT_LINES); // no two bots reach for the same quip
+  const unused = shuffle(BOT_DEFENCE); // no two bots reach for the same stem
   for (const p of G.players.slice(1)) {
     const fav = FAVOURS[G.scenario.i] || [];
-    // Nominate the best fit for the scenario, breaking ties by what they paid.
+    // Star the best fit for the scenario, breaking ties by what they paid.
     const best = p.roster.slice().sort((a, b) => {
       const fa = fav.indexOf(a.g), fb = fav.indexOf(b.g);
       return (fa === -1 ? 9 : fa) - (fb === -1 ? 9 : fb) || b.price - a.price;
     })[0];
     p.mvpId = best.i;
-    p.line = Math.random() < 0.8 ? unused.pop()(best.n) : '';
+    p.line = unused.pop()(best.n, best.s[0]).slice(0, CFG.lineMax);
   }
 }
 
@@ -809,7 +651,9 @@ function crewFit(p) {
     if (at !== -1) score += 3 - at;
     if (c.i === p.mvpId && at !== -1) score += 2;
   }
-  return score + Math.random() * 2.5; // taste is never quite objective
+  // A written defence counts for something, the way it does at a real table.
+  if (p.line) score += 1.5;
+  return score + Math.random() * 2.5;
 }
 
 function botsVote() {
@@ -871,8 +715,9 @@ function advance() {
 
 function goVote() {
   const you = me();
+  // Starring is optional; skipping it nominates the big signing.
   if (!you.mvpId) you.mvpId = you.roster.reduce((b, c) => (c.price > b.price ? c : b), you.roster[0]).i;
-  you.line = $('line-input').value.trim().slice(0, 120);
+  you.line = $('line-input').value.replace(/\s+/g, ' ').trim().slice(0, CFG.lineMax);
   botsVote();
   G.phase = 'vote';
   timer = null;
@@ -880,7 +725,7 @@ function goVote() {
 }
 
 /* ----------------------------------------------------------------- render */
-const PHASE_NAME = { auction: 'The auction', reveal: 'The reveal', pitch: 'The pitch', vote: 'The vote', results: 'Results' };
+const PHASE_NAME = { auction: 'Auction', reveal: 'Reveal', pitch: 'Defend', vote: 'Vote', results: 'Scores' };
 
 function render() {
   const show = (id, on) => $(id).classList.toggle('hidden', !on);
@@ -891,7 +736,7 @@ function render() {
   show('p-results', G.phase === 'results');
 
   $('phase-name').textContent = PHASE_NAME[G.phase];
-  $('round-no').textContent = `ROUND ${G.round}`;
+  $('round-no').textContent = `R${G.round}`;
   $('btn-skip').classList.toggle('hidden', G.phase === 'results' || G.phase === 'vote');
 
   if (G.phase === 'auction') renderAuction();
@@ -901,68 +746,54 @@ function render() {
   if (G.phase === 'results') renderResults();
 }
 
-function rosterRows(roster) {
-  const rows = roster.map((c) => `<li>
-      <span class="who"><span>${c.e}</span><span class="nm">${esc(c.n)}</span></span>
-      <span class="leader"></span>
-      <span class="amt${c.free ? ' free' : ''}">${c.free ? 'unsold' : c.price}</span></li>`);
-  for (let i = roster.length; i < CFG.roster; i++) rows.push('<li class="empty">empty slot</li>');
-  return rows.join('');
-}
+const avatar = (p, size) => `<span class="avatar" style="background:${p.tint}${size ? `;width:${size};height:${size}` : ''}">${p.emoji}</span>`;
 
 function renderAuction() {
   const lot = G.lot, you = me();
   const cardEl = $('lot-card');
-  // The card element is reused, so retrigger the deal animation per lot.
+  // The element is reused, so retrigger the pop animation per lot.
   if (cardEl.dataset.lotId !== String(G.idx)) {
     cardEl.dataset.lotId = String(G.idx);
     cardEl.style.animation = 'none';
     void cardEl.offsetWidth;
     cardEl.style.animation = '';
   }
+
   $('lot-count').textContent = `Lot ${G.idx + 1} of ${G.lots.length}`;
-  $('lot-no').textContent = `NO. ${String(G.idx + 1).padStart(2, '0')}`;
   $('lot-face').textContent = lot.card.e;
   $('lot-cat').textContent = lot.card.g;
   $('lot-name').textContent = lot.card.n;
   $('lot-role').textContent = lot.card.r;
   $('lot-traits').innerHTML = lot.card.s.map((t) => `<li>${esc(t)}</li>`).join('');
 
-  const card = $('lot-card');
-  card.classList.toggle('is-passed', lot.status === 'passed');
-  const oldStamp = card.querySelector('.stamp');
+  cardEl.classList.toggle('passed', lot.status === 'passed');
+  const oldStamp = cardEl.querySelector('.stamp');
   if (oldStamp) oldStamp.remove();
+  const holder = lot.holder ? G.players.find((p) => p.id === lot.holder) : null;
   if (lot.status !== 'bidding') {
     const stamp = document.createElement('div');
-    stamp.className = 'stamp' + (lot.status === 'passed' ? ' stamp--passed' : '');
-    stamp.textContent = lot.status === 'sold' ? 'Sold' : 'No bid';
-    card.appendChild(stamp);
+    stamp.className = 'stamp' + (lot.status === 'sold' ? ' sold' : '');
+    stamp.innerHTML = lot.status === 'sold'
+      ? `<div>SOLD<small>${esc(holder.name)} · ${lot.bid}</small></div>`
+      : '<div>NO BIDS</div>';
+    cardEl.appendChild(stamp);
   }
-
-  const holder = lot.holder ? G.players.find((p) => p.id === lot.holder) : null;
-  const st = $('lot-status');
-  if (lot.status === 'sold') { st.textContent = `Knocked down to ${holder.name} — ${lot.bid}`; st.className = 'status sold'; }
-  else if (lot.status === 'passed') { st.textContent = 'Passed — into the bargain bin'; st.className = 'status passed'; }
-  else { st.textContent = 'On the block'; st.className = 'status'; }
 
   $('bid-now').textContent = lot.bid || '––';
   $('bid-now').classList.toggle('empty', !lot.bid);
-  $('bid-holder').innerHTML = holder ? `held by <b>${esc(holder.name)}</b>` : 'no bids yet';
+  $('bid-holder').textContent = holder ? `held by ${holder.name}` : 'no bids yet';
 
   $('my-budget').textContent = you.budget;
   $('my-max').textContent = Math.max(0, maxBid(you));
-  $('my-roster').innerHTML = rosterRows(you.roster);
+  $('my-slots').innerHTML = Array.from({ length: CFG.roster }, (_, i) => {
+    const c = you.roster[i];
+    return c ? `<li class="slot filled" title="${esc(c.n)}">${c.e}</li>` : '<li class="slot empty"></li>';
+  }).join('');
 
-  $('table-list').innerHTML = G.players.map((p) => `
-    <li class="${p.human ? 'you' : ''}${lot.holder === p.id ? ' high' : ''}">
-      <span class="who"><span>${p.emoji}</span><span class="nm">${esc(p.name)}</span></span>
-      <span class="leader"></span>
+  $('room-list').innerHTML = G.players.map((p) => `
+    <li class="${lot.holder === p.id ? 'high' : ''}">
+      ${avatar(p)}<span class="nm">${esc(p.name)}</span>
       <span class="amt">${p.budget} · ${p.roster.length}/${CFG.roster}</span></li>`).join('');
-
-  $('sold-log').innerHTML = G.sold.length
-    ? G.sold.slice(0, 6).map((s) => `<li><span>${s.card.e}</span><b>${esc(s.card.n)}</b>
-        <span class="leader"></span><span class="amt">${s.price}</span></li>`).join('')
-    : '<li>Nothing yet.</li>';
 
   const full = you.roster.length >= CFG.roster;
   const live = lot.status === 'bidding';
@@ -975,88 +806,78 @@ function renderAuction() {
     b.dataset.amount = amt;
   }
   const after = CFG.roster - you.roster.length - 1;
-  $('bid-hint').textContent = full ? 'Roster full. Sit back and watch the others panic.'
+  $('bid-hint').textContent = full ? 'Roster full.'
     : holding ? 'Yours, unless somebody speaks.'
-    : maxBid(you) < minBid() ? 'Out of reach. Wait for a cheaper lot.'
-    : after > 0 ? `Ceiling ${maxBid(you)} — ${after} credit${after === 1 ? '' : 's'} held back for your empty slots.`
-    : `Ceiling ${maxBid(you)} — this is your last slot.`;
+    : maxBid(you) < minBid() ? 'Out of reach.'
+    : after > 0 ? `Ceiling ${maxBid(you)} · ${after} reserved for empty slots`
+    : `Ceiling ${maxBid(you)} · last slot`;
 }
 
 function renderReveal() {
   const s = G.scenario;
-  $('rev-emoji').textContent = s.e;
+  $('rev-face').textContent = s.e;
   $('rev-title').textContent = s.n;
   $('rev-setup').textContent = s.u;
   $('rev-stakes').innerHTML = s.k.map((t) => `<li>${esc(t)}</li>`).join('');
 }
 
-function stripHtml(s) {
-  return `<span class="strip__emoji">${s.e}</span>
-    <div><h2>${esc(s.n)}</h2><p>${esc(s.u)}</p></div>
-    <ul class="chips">${s.k.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>`;
+function bannerHtml(s, compact) {
+  return `<span class="banner__face">${s.e}</span>
+    <div><h2>${esc(s.n)}</h2>${compact ? '' : `<p>${esc(s.u)}</p>`}</div>`;
 }
 
 function renderPitch() {
   const you = me();
-  $('pitch-strip').innerHTML = stripHtml(G.scenario);
+  $('pitch-banner').innerHTML = bannerHtml(G.scenario);
 
-  // Rebuild only when the hand changes, so picking a card does not restart
-  // the deal animation on all five.
-  const grid = $('mvp-grid');
+  // Rebuild only when the hand changes, so starring does not restart the
+  // entrance animation on all five.
+  const grid = $('crew-pick');
   const signature = `${G.round}:${you.roster.map((c) => c.i).join(',')}`;
   if (grid.dataset.signature !== signature) {
     grid.dataset.signature = signature;
     grid.innerHTML = you.roster.map((c) => `
-      <button class="mvp" data-mvp="${c.i}">
-        <span class="mvp__face">${c.e}</span>
-        <span class="mvp__name">${esc(c.n)}</span>
-        <span class="mvp__role">${esc(c.r)}</span>
-        <span class="mvp__star">★</span></button>`).join('');
+      <button class="pick" data-mvp="${c.i}">
+        <span class="pick__face">${c.e}</span>
+        <span class="pick__nm">${esc(c.n)}</span>
+        <span class="pick__role">${esc(c.r)}</span>
+        <span class="pick__star">⭐</span>
+      </button>`).join('');
   }
-  for (const btn of grid.children) btn.classList.toggle('picked', btn.dataset.mvp === you.mvpId);
-  $('btn-ready').disabled = !you.mvpId;
-}
-
-function crewList(p) {
-  return `<ul class="crew">${p.roster.map((c) => `
-    <li class="${c.i === p.mvpId ? 'is-mvp' : ''}"><span>${c.e}</span><span class="nm">${esc(c.n)}</span>
-      <span class="leader"></span><span class="amt${c.free ? ' free' : ''}">${c.free ? 'unsold' : c.price}</span></li>`).join('')}</ul>`;
+  for (const btn of grid.children) btn.classList.toggle('starred', btn.dataset.mvp === you.mvpId);
 }
 
 function renderVote() {
-  $('vote-strip').innerHTML = stripHtml(G.scenario);
+  $('vote-banner').innerHTML = bannerHtml(G.scenario, true);
   const you = me();
-  $('vote-list').innerHTML = G.players.map((p) => `
-    <article class="vote-card${you.vote === p.id ? ' picked' : ''}">
-      <div class="vote-card__head">
-        <h4>${p.emoji} ${esc(p.name)}</h4>
-        <span class="label">${p.budget} unspent</span>
-      </div>
-      ${crewList(p)}
-      ${p.line ? `<p class="line">${esc(p.line)}</p>` : ''}
-      ${p.human ? '<span class="label">Your crew</span>'
-        : `<button class="btn ${you.vote === p.id ? 'btn--brass' : ''}" data-vote="${p.id}">${you.vote === p.id ? 'Voted ✓' : 'Vote for this crew'}</button>`}
+  $('answers').innerHTML = G.players.map((p) => `
+    <article class="answer${you.vote === p.id ? ' picked' : ''}" style="--tint:${p.tint}">
+      <div class="answer__who">${avatar(p)} ${esc(p.name)}${p.human ? ' (you)' : ''}</div>
+      <p class="answer__text${p.line ? '' : ' none'}">${p.line ? esc(p.line) : 'Said nothing at all.'}</p>
+      <div class="answer__crew">${p.roster.map((c) => `
+        <span class="${c.i === p.mvpId ? 'star' : ''}">${c.e} ${esc(c.n)}</span>`).join('')}</div>
+      ${p.human ? '<p class="mine">Your crew</p>'
+        : `<button class="btn ${you.vote === p.id ? 'on' : ''}" data-vote="${p.id}">${you.vote === p.id ? 'Voted ✓' : 'Vote'}</button>`}
     </article>`).join('');
 }
 
 function renderResults() {
   const r = G.results;
   const champ = r.scored[0];
-  $('res-headline').innerHTML = r.tie ? 'A <b>split decision</b>'
-    : champ.votes > 0 ? (champ.name === 'You' ? 'You take <b>the round</b>' : `<b>${esc(champ.name)}</b> takes the round`)
-    : 'Nobody convinced <b>anybody</b>';
+  $('res-headline').textContent = r.tie ? 'Split decision!'
+    : champ.votes > 0 ? (champ.name === 'You' ? 'You win the round!' : `${champ.name} wins the round`)
+    : 'Nobody convinced anybody';
   $('res-sub').textContent = `${G.scenario.n} · round ${G.round}`;
-  $('res-list').innerHTML = r.scored.map((s, i) => {
+  $('scores').innerHTML = r.scored.map((s, i) => {
     const p = G.players.find((x) => x.id === s.id);
-    return `<div class="result${r.winners.includes(s.id) ? ' win' : ''}">
-      <div class="result__rank">${i + 1}</div>
+    return `<div class="score${r.winners.includes(s.id) ? ' win' : ''}">
+      <div class="score__rank">${i + 1}</div>
       <div>
-        <div class="result__name">${p.emoji} ${esc(s.name)}</div>
-        <div class="result__sub">${s.votes} vote${s.votes === 1 ? '' : 's'} · spent ${s.spent}</div>
-        ${crewList(p)}
-        ${p.line ? `<p class="line" style="margin-top:.6rem">${esc(p.line)}</p>` : ''}
+        <div class="score__nm">${avatar(p)} ${esc(s.name)}</div>
+        <div class="score__sub">${s.votes} vote${s.votes === 1 ? '' : 's'} · spent ${s.spent} · ${s.total} total</div>
+        ${p.line ? `<div class="score__line">“${esc(p.line)}”</div>` : ''}
       </div>
-      <div class="result__score"><strong>+${s.pts}</strong><div class="result__sub">${s.total} total</div></div>
+      <div class="score__pts">+${s.pts}</div>
     </div>`;
   }).join('');
 }
@@ -1074,17 +895,31 @@ document.querySelector('.keys').addEventListener('click', (e) => {
   if (b && !b.disabled) placeBid('you', Number(b.dataset.amount));
 });
 
-$('mvp-grid').addEventListener('click', (e) => {
+$('crew-pick').addEventListener('click', (e) => {
   const b = e.target.closest('[data-mvp]');
   if (!b) return;
-  me().mvpId = b.dataset.mvp;
+  // Tapping the starred one again clears it.
+  me().mvpId = me().mvpId === b.dataset.mvp ? null : b.dataset.mvp;
   render();
 });
 
-$('btn-ready').addEventListener('click', goVote);
-$('line-input').addEventListener('keydown', (e) => { if (e.key === 'Enter' && me().mvpId) goVote(); });
+/** Grow to fit: a defence you cannot see all of is worse than no defence. */
+function fitWriter() {
+  const box = $('line-input');
+  box.style.height = 'auto';
+  box.style.height = `${box.scrollHeight}px`;
+}
 
-$('vote-list').addEventListener('click', (e) => {
+$('line-input').addEventListener('input', () => {
+  const n = $('line-input').value.length;
+  $('count').textContent = `${n} / ${CFG.lineMax}`;
+  $('count').classList.toggle('close', n > CFG.lineMax - 25);
+  fitWriter();
+});
+
+$('btn-ready').addEventListener('click', goVote);
+
+$('answers').addEventListener('click', (e) => {
   const b = e.target.closest('[data-vote]');
   if (!b) return;
   me().vote = b.dataset.vote;
@@ -1098,12 +933,14 @@ $('btn-again').addEventListener('click', () => {
   const carry = Object.fromEntries(G.players.map((p) => [p.id, p.score]));
   G = newGame(carry);
   $('line-input').value = '';
+  $('count').textContent = `0 / ${CFG.lineMax}`;
+  fitWriter();
   nextLot();
 });
 
 // B raises by one, the way a paddle does.
 document.addEventListener('keydown', (e) => {
-  if (e.target.matches('input')) return;
+  if (e.target.matches('input, textarea')) return;
   if ((e.key === 'b' || e.key === 'B') && G && G.phase === 'auction') {
     const b = document.querySelector('[data-step="1"]');
     if (b && !b.disabled) placeBid('you', Number(b.dataset.amount));
