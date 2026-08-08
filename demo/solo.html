@@ -1,0 +1,949 @@
+<title>Blind Scenario Auction</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+<style>
+/* ============================================================== tokens ===
+   A party game, so: vivid gradient ground, white cards, one loud yellow for
+   every action, and a hue per player. Phone-shaped on every screen -- the
+   column never widens, it just centres. Committed single-theme. */
+:root {
+  --violet:  #4310A8;
+  --magenta: #B12A8C;
+  --coral:   #FF6B4A;
+
+  --card:      #FFFFFF;
+  --card-2:    #F6F2FF;
+  --ink:       #241242;
+  --ink-soft:  #6D5E86;
+  --ink-faint: #A99CBE;
+
+  --zap:      #FFE14D;   /* every primary action */
+  --zap-deep: #E9C21F;
+  --win:      #22C55E;
+  --hot:      #FF3D71;
+
+  --p1: #FFC145;  --p2: #37D5D6;  --p3: #9BE564;  --p4: #FF6B6B;
+
+  --round: 22px;
+  --round-sm: 14px;
+  --shadow: 0 10px 0 rgba(36,18,66,.18), 0 18px 40px rgba(36,18,66,.28);
+  --font: ui-rounded, 'SF Pro Rounded', 'Segoe UI Variable Display', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+/* The gradient lives on html so it propagates to the canvas and covers pages
+   taller than the viewport; on body it would stop at the fold. */
+html {
+  min-height: 100%;
+  background: linear-gradient(160deg, var(--violet) 0%, var(--magenta) 55%, var(--coral) 130%) no-repeat fixed;
+  background-color: var(--magenta);
+}
+
+body {
+  margin: 0; min-height: 100vh;
+  font-family: var(--font);
+  color: #fff;
+  background: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4 { margin: 0; line-height: 1.05; text-wrap: balance; font-weight: 800; letter-spacing: -.02em; }
+p { margin: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+.hidden { display: none !important; }
+
+/* One phone-shaped column, centred, on every screen size. */
+.col { width: min(560px, 100%); margin: 0 auto; padding: 0 .9rem 2.5rem; }
+
+.label { font-size: .68rem; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; opacity: .75; }
+.tabular { font-variant-numeric: tabular-nums; }
+
+button { font: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+/* ============================================================== buttons */
+.btn {
+  border: 0; border-radius: var(--round-sm);
+  background: rgba(255,255,255,.16); color: #fff;
+  font-weight: 800; font-size: 1rem; padding: .8rem 1.2rem;
+  box-shadow: 0 4px 0 rgba(36,18,66,.25);
+  transition: transform .1s ease, background .15s ease, box-shadow .1s ease;
+}
+.btn:hover:not(:disabled) { background: rgba(255,255,255,.26); }
+.btn:active:not(:disabled) { transform: translateY(3px); box-shadow: 0 1px 0 rgba(36,18,66,.25); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.btn--zap { background: var(--zap); color: var(--ink); box-shadow: 0 5px 0 var(--zap-deep); }
+.btn--zap:hover:not(:disabled) { background: #FFEA80; }
+.btn--zap:active:not(:disabled) { box-shadow: 0 1px 0 var(--zap-deep); }
+.btn--big { width: 100%; padding: 1.05rem 1.2rem; font-size: 1.15rem; border-radius: var(--round); }
+.btn--ghost { background: rgba(255,255,255,.14); box-shadow: none; padding: .5rem .9rem; font-size: .85rem; }
+
+/* Bid keys: chunky, thumb-sized, tabular. */
+.keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+.key {
+  border: 0; border-radius: var(--round-sm);
+  background: var(--card); color: var(--ink);
+  font-weight: 900; font-size: 1.25rem; font-variant-numeric: tabular-nums;
+  padding: .85rem .2rem;
+  box-shadow: 0 5px 0 rgba(36,18,66,.3);
+  transition: transform .1s ease, box-shadow .1s ease, opacity .15s ease;
+}
+.key:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 1px 0 rgba(36,18,66,.3); }
+.key:disabled { opacity: .35; cursor: not-allowed; }
+
+/* ================================================================ start */
+.start { min-height: 100vh; display: grid; place-items: center; padding: 1.5rem .9rem; }
+.start__inner { width: min(560px, 100%); display: grid; gap: 1.1rem; text-align: center; justify-items: center; }
+.start h1 { font-size: clamp(2.6rem, 11vw, 3.6rem); font-weight: 900; line-height: .95; }
+.start h1 em { display: block; font-style: normal; color: var(--zap); }
+.lede { font-size: 1.1rem; line-height: 1.45; font-weight: 600; opacity: .95; max-width: 22ch; }
+
+.steps { display: flex; gap: .4rem; flex-wrap: wrap; justify-content: center; }
+.steps li {
+  background: rgba(255,255,255,.16); border-radius: 999px;
+  padding: .4rem .85rem; font-size: .85rem; font-weight: 800;
+}
+.steps li b { color: var(--zap); margin-right: .3rem; }
+
+.rivals { display: grid; gap: .45rem; width: 100%; }
+.rival {
+  display: flex; align-items: center; gap: .6rem;
+  background: rgba(255,255,255,.12); border-radius: var(--round-sm);
+  padding: .6rem .8rem; font-size: .95rem; font-weight: 600; text-align: left;
+}
+.rival .dot { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: .9rem; flex: 0 0 auto; }
+.rival b { font-weight: 800; }
+.rival span { opacity: .8; }
+
+/* =============================================================== topbar */
+.topbar {
+  position: sticky; top: 0; z-index: 20;
+  display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+  padding: .6rem .9rem;
+  background: rgba(36,18,66,.4); backdrop-filter: blur(12px);
+}
+.topbar__l { display: flex; align-items: center; gap: .5rem; }
+.phase { font-weight: 800; font-size: 1rem; }
+.round { font-size: .7rem; font-weight: 800; letter-spacing: .1em; opacity: .65; }
+
+.clock {
+  min-width: 2.9rem; text-align: center;
+  font-weight: 900; font-size: 1.3rem; font-variant-numeric: tabular-nums;
+  background: rgba(255,255,255,.18); border-radius: 999px; padding: .1rem .6rem;
+}
+.clock.urgent { background: var(--hot); animation: throb .8s ease-in-out infinite; }
+@keyframes throb { 50% { transform: scale(1.12); } }
+
+.stage { padding-top: 1rem; }
+
+/* ============================================================== auction */
+.lot {
+  position: relative; overflow: hidden;
+  background: var(--card); color: var(--ink);
+  border-radius: var(--round); padding: 1.4rem 1.2rem 1.2rem;
+  box-shadow: var(--shadow);
+  display: grid; justify-items: center; text-align: center; gap: .25rem;
+  animation: pop .35s cubic-bezier(.2,1.3,.4,1);
+}
+@keyframes pop { from { opacity: 0; transform: scale(.9) translateY(10px); } }
+.lot.passed { opacity: .65; }
+
+.lot__face {
+  width: 92px; height: 92px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 3rem;
+  background: linear-gradient(150deg, #FFE9F4, #E8DEFF);
+  margin-bottom: .5rem;
+}
+.lot__cat {
+  font-size: .66rem; font-weight: 900; letter-spacing: .16em; text-transform: uppercase;
+  color: #fff; background: var(--magenta); border-radius: 999px; padding: .22rem .7rem;
+}
+.lot__name { font-size: clamp(1.6rem, 6.5vw, 2.1rem); font-weight: 900; margin-top: .35rem; }
+.lot__role { color: var(--ink-soft); font-weight: 700; font-size: .95rem; }
+.traits { display: flex; flex-wrap: wrap; gap: .35rem; justify-content: center; margin-top: .7rem; }
+.traits li {
+  font-size: .78rem; font-weight: 700; color: var(--ink);
+  background: var(--card-2); border-radius: 999px; padding: .28rem .65rem;
+}
+
+/* The hammer moment. */
+.stamp {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  background: rgba(36,18,66,.82); color: #fff;
+  font-size: clamp(2.2rem, 10vw, 3rem); font-weight: 900; letter-spacing: .04em;
+  animation: slam .3s cubic-bezier(.2,1.5,.4,1);
+}
+.stamp small { display: block; font-size: .95rem; font-weight: 700; opacity: .85; margin-top: .3rem; letter-spacing: 0; }
+.stamp.sold { color: var(--zap); }
+@keyframes slam { from { opacity: 0; transform: scale(1.6); } }
+
+.board { display: grid; gap: .7rem; margin-top: .9rem; }
+.board__top { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
+.board__fig { font-size: 2.6rem; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1; }
+.board__fig.empty { opacity: .45; font-size: 2rem; }
+.board__who { font-size: .9rem; font-weight: 700; opacity: .85; text-align: right; }
+.hint { font-size: .82rem; font-weight: 600; opacity: .7; text-align: center; }
+
+/* Roster as five slots, filling up. */
+.slots { display: grid; grid-template-columns: repeat(5, 1fr); gap: .4rem; margin-top: 1rem; }
+.slot {
+  aspect-ratio: 1; border-radius: var(--round-sm);
+  display: grid; place-items: center; font-size: 1.4rem;
+  background: rgba(255,255,255,.14);
+}
+.slot.filled { background: var(--card); }
+.slot.empty { border: 2px dashed rgba(255,255,255,.3); background: transparent; }
+
+.purse { display: flex; justify-content: space-between; gap: .5rem; margin-top: .8rem; }
+.purse div { flex: 1; background: rgba(255,255,255,.12); border-radius: var(--round-sm); padding: .55rem .7rem; }
+.purse strong { display: block; font-size: 1.3rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+
+.room { display: grid; gap: .35rem; margin-top: 1rem; }
+.room li {
+  display: flex; align-items: center; gap: .55rem;
+  background: rgba(255,255,255,.1); border-radius: 999px; padding: .4rem .75rem;
+  font-size: .88rem; font-weight: 700;
+}
+.room li.high { background: var(--zap); color: var(--ink); }
+.room .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room .amt { font-variant-numeric: tabular-nums; opacity: .8; }
+.room li.high .amt { opacity: 1; }
+.avatar { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: .75rem; flex: 0 0 auto; }
+
+/* =============================================================== reveal */
+.reveal { display: grid; justify-items: center; text-align: center; gap: 1rem; padding-top: 8vh; }
+.reveal__burst {
+  width: 120px; height: 120px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 3.6rem;
+  background: var(--zap);
+  box-shadow: 0 0 0 12px rgba(255,225,77,.25), 0 0 0 26px rgba(255,225,77,.12);
+  animation: burst .5s cubic-bezier(.2,1.4,.4,1) both;
+}
+@keyframes burst { from { transform: scale(0); } }
+.reveal h2 { font-size: clamp(2.2rem, 9vw, 3rem); font-weight: 900; animation: rise .5s .15s both; }
+.reveal p { font-size: 1.1rem; font-weight: 600; line-height: 1.45; max-width: 26ch; animation: rise .5s .3s both; }
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+.chips { display: flex; gap: .4rem; flex-wrap: wrap; justify-content: center; }
+.chips li { background: rgba(255,255,255,.18); border-radius: 999px; padding: .3rem .75rem; font-size: .82rem; font-weight: 700; }
+.reveal .chips { animation: rise .5s .45s both; }
+
+/* ========================================================== pitch/vote */
+.banner {
+  display: flex; align-items: center; gap: .75rem;
+  background: rgba(255,255,255,.14); border-radius: var(--round-sm);
+  padding: .7rem .9rem; margin-bottom: 1rem;
+}
+.banner__face { font-size: 1.7rem; flex: 0 0 auto; }
+.banner h2 { font-size: 1.15rem; font-weight: 900; }
+.banner p { font-size: .85rem; font-weight: 600; opacity: .8; margin-top: .1rem; }
+
+.prompt { font-size: 1.35rem; font-weight: 900; margin-bottom: .2rem; }
+.prompt + .sub { font-size: .9rem; font-weight: 600; opacity: .75; margin-bottom: .8rem; }
+
+/* Your five as tappable rows: full names, no truncation, one thumb-sized
+   target each. Five across only fits initials on a phone. */
+.crew-pick { display: grid; gap: .35rem; margin-bottom: 1.1rem; }
+.pick {
+  position: relative; width: 100%; text-align: left;
+  border: 0; border-radius: var(--round-sm);
+  background: rgba(255,255,255,.14); color: #fff;
+  padding: .55rem .8rem;
+  display: flex; align-items: center; gap: .6rem;
+  transition: transform .12s ease, background .15s ease;
+}
+.pick:hover { transform: translateX(2px); background: rgba(255,255,255,.22); }
+.pick__face { font-size: 1.3rem; flex: 0 0 auto; }
+.pick__nm { font-size: .95rem; font-weight: 800; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The name must never be the thing that truncates, so the role yields first
+   and drops out entirely on a phone. */
+.pick__role {
+  font-size: .72rem; font-weight: 700; opacity: .7;
+  flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+@media (max-width: 480px) { .pick__role { display: none; } }
+.pick.starred { background: var(--zap); color: var(--ink); }
+.pick.starred .pick__role { opacity: .8; }
+.pick__star { font-size: .95rem; opacity: 0; flex: 0 0 auto; }
+.pick.starred .pick__star { opacity: 1; }
+
+.writer { background: var(--card); border-radius: var(--round); padding: 1rem; box-shadow: var(--shadow); }
+.writer textarea {
+  width: 100%; border: 0; resize: none; font: inherit;
+  font-size: 1.1rem; font-weight: 600; line-height: 1.45; color: var(--ink);
+  background: transparent; padding: 0;
+  overflow: hidden; /* it grows to fit instead of scrolling away from you */
+}
+.writer textarea:focus { outline: none; }
+.writer textarea::placeholder { color: var(--ink-faint); font-weight: 500; }
+.writer__foot { display: flex; align-items: center; justify-content: space-between; margin-top: .7rem; }
+.count { font-size: .8rem; font-weight: 800; color: var(--ink-faint); font-variant-numeric: tabular-nums; }
+.count.close { color: var(--hot); }
+
+/* Voting: the defence is the headline, the crew is the small print. */
+.answers { display: grid; gap: .8rem; }
+.answer {
+  background: var(--card); color: var(--ink);
+  border-radius: var(--round); padding: 1.1rem;
+  box-shadow: var(--shadow);
+  display: grid; gap: .7rem;
+  border-left: 8px solid var(--tint, var(--magenta));
+  animation: pop .3s both;
+}
+.answer:nth-child(2) { animation-delay: .06s } .answer:nth-child(3) { animation-delay: .12s }
+.answer:nth-child(4) { animation-delay: .18s }
+.answer__who { display: flex; align-items: center; gap: .5rem; font-weight: 900; font-size: .95rem; }
+.answer__who .avatar { width: 24px; height: 24px; }
+.answer__text { font-size: 1.2rem; font-weight: 700; line-height: 1.35; }
+.answer__text.none { color: var(--ink-faint); font-weight: 600; font-style: italic; font-size: 1rem; }
+.answer__crew { display: flex; flex-wrap: wrap; gap: .3rem; }
+.answer__crew span {
+  font-size: .74rem; font-weight: 700; color: var(--ink-soft);
+  background: var(--card-2); border-radius: 999px; padding: .22rem .55rem;
+}
+.answer__crew span.star { background: var(--zap); color: var(--ink); }
+.answer.picked { outline: 4px solid var(--zap); }
+.answer .btn { background: var(--ink); color: #fff; box-shadow: 0 4px 0 rgba(36,18,66,.35); }
+.answer .btn.on { background: var(--zap); color: var(--ink); box-shadow: 0 4px 0 var(--zap-deep); }
+.answer .mine { font-size: .8rem; font-weight: 800; color: var(--ink-faint); text-align: center; }
+
+/* ============================================================== results */
+.res-head { text-align: center; display: grid; gap: .3rem; margin-bottom: 1.2rem; }
+.res-head h2 { font-size: clamp(1.9rem, 8vw, 2.5rem); font-weight: 900; }
+.res-head .label { opacity: .8; }
+
+.scores { display: grid; gap: .6rem; }
+.score {
+  display: grid; grid-template-columns: auto 1fr auto; gap: .8rem; align-items: center;
+  background: rgba(255,255,255,.13); border-radius: var(--round-sm); padding: .8rem 1rem;
+}
+.score.win { background: var(--zap); color: var(--ink); }
+.score__rank { font-size: 1.4rem; font-weight: 900; opacity: .55; font-variant-numeric: tabular-nums; }
+.score.win .score__rank { opacity: .8; }
+.score__nm { font-weight: 900; font-size: 1.05rem; display: flex; align-items: center; gap: .45rem; }
+.score__sub { font-size: .8rem; font-weight: 700; opacity: .7; margin-top: .15rem; }
+.score__line { font-size: .88rem; font-weight: 600; opacity: .85; margin-top: .35rem; font-style: italic; }
+.score__pts { font-size: 1.5rem; font-weight: 900; font-variant-numeric: tabular-nums; text-align: right; }
+
+.footnote { text-align: center; font-size: .82rem; font-weight: 600; opacity: .65; margin-top: 1.8rem; line-height: 1.6; }
+.footnote code { font-family: var(--mono); background: rgba(255,255,255,.15); padding: .1rem .35rem; border-radius: 5px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+@media (max-width: 400px) {
+  .pick__nm { font-size: .55rem; }
+  .lot__face { width: 76px; height: 76px; font-size: 2.4rem; }
+}
+</style>
+
+<!-- =============================================================== START -->
+<section id="start" class="start">
+  <div class="start__inner">
+    <h1>Blind Scenario<em>Auction</em></h1>
+    <p class="lede">Draft five people blind. Then find out what you needed them for.</p>
+
+    <ul class="steps">
+      <li><b>1</b>Bid</li>
+      <li><b>2</b>Reveal</li>
+      <li><b>3</b>Defend</li>
+      <li><b>4</b>Vote</li>
+    </ul>
+
+    <div class="rivals">
+      <div class="rival"><span class="dot" style="background:var(--p2)">🪙</span><div><b>Priya</b> <span>pays up early</span></div></div>
+      <div class="rival"><span class="dot" style="background:var(--p3)">🧊</span><div><b>Tomás</b> <span>waits for scraps</span></div></div>
+      <div class="rival"><span class="dot" style="background:var(--p4)">🔥</span><div><b>Nkechi</b> <span>wants survivors</span></div></div>
+    </div>
+
+    <button id="btn-start" class="btn btn--zap btn--big">Open the bidding</button>
+    <p class="label">100 credits · five slots</p>
+  </div>
+</section>
+
+<!-- ================================================================ GAME -->
+<section id="game" class="hidden">
+  <header class="topbar">
+    <div class="topbar__l">
+      <span id="phase-name" class="phase">Auction</span>
+      <span id="round-no" class="round">R1</span>
+    </div>
+    <div class="topbar__l">
+      <div id="clock" class="clock">0</div>
+      <button id="btn-skip" class="btn btn--ghost">Skip ▸</button>
+    </div>
+  </header>
+
+  <div class="col stage">
+    <!-- auction -->
+    <div id="p-auction" class="hidden">
+      <p class="label" id="lot-count" style="text-align:center;margin-bottom:.6rem"></p>
+
+      <article id="lot-card" class="lot">
+        <div class="lot__face" id="lot-face">?</div>
+        <span class="lot__cat" id="lot-cat"></span>
+        <h2 class="lot__name" id="lot-name"></h2>
+        <p class="lot__role" id="lot-role"></p>
+        <ul class="traits" id="lot-traits"></ul>
+      </article>
+
+      <div class="board">
+        <div class="board__top">
+          <div>
+            <p class="label">Standing bid</p>
+            <strong id="bid-now" class="board__fig">––</strong>
+          </div>
+          <p id="bid-holder" class="board__who">no bids yet</p>
+        </div>
+        <div class="keys">
+          <button class="key" data-step="1"></button>
+          <button class="key" data-step="3"></button>
+          <button class="key" data-step="5"></button>
+          <button class="key" data-step="10"></button>
+        </div>
+        <p id="bid-hint" class="hint"></p>
+      </div>
+
+      <ul class="slots" id="my-slots"></ul>
+      <div class="purse">
+        <div><span class="label">Credits</span><strong id="my-budget">100</strong></div>
+        <div><span class="label">Ceiling</span><strong id="my-max">96</strong></div>
+      </div>
+      <ul class="room" id="room-list"></ul>
+    </div>
+
+    <!-- reveal -->
+    <div id="p-reveal" class="hidden">
+      <div class="reveal">
+        <div class="reveal__burst" id="rev-face"></div>
+        <h2 id="rev-title"></h2>
+        <p id="rev-setup"></p>
+        <ul class="chips" id="rev-stakes"></ul>
+      </div>
+    </div>
+
+    <!-- pitch -->
+    <div id="p-pitch" class="hidden">
+      <div id="pitch-banner" class="banner"></div>
+      <p class="prompt">Defend your five.</p>
+      <p class="sub">Star the one who wins it, then make your case in a line or two.</p>
+      <ul class="crew-pick" id="crew-pick"></ul>
+      <div class="writer">
+        <textarea id="line-input" rows="2" maxlength="160"
+          placeholder="Ramsay feeds forty people from a burnt-out supermarket. The shouting is a feature."></textarea>
+        <div class="writer__foot">
+          <span id="count" class="count">0 / 160</span>
+          <button id="btn-ready" class="btn btn--zap">Lock it in</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- vote -->
+    <div id="p-vote" class="hidden">
+      <div id="vote-banner" class="banner"></div>
+      <p class="prompt">Whose crew wins this?</p>
+      <p class="sub">Anyone but yourself.</p>
+      <div class="answers" id="answers"></div>
+    </div>
+
+    <!-- results -->
+    <div id="p-results" class="hidden">
+      <div class="res-head">
+        <h2 id="res-headline"></h2>
+        <p id="res-sub" class="label"></p>
+      </div>
+      <div class="scores" id="scores"></div>
+      <button id="btn-again" class="btn btn--zap btn--big" style="margin-top:1.4rem">Next round</button>
+      <p class="footnote">
+        Solo game — you against three bots.
+        For the real thing, everyone on their own phone, run <code>npm start</code> from the repo.
+      </p>
+    </div>
+  </div>
+</section>
+
+<script>
+const CARDS=[{"i":"carlsen","n":"Magnus Carlsen","r":"Chess world champion","e":"♞","g":"Brains","t":3,"s":["14 moves ahead","Ice under a clock","Never tilts"]},{"i":"curie","n":"Marie Curie","r":"Physicist & chemist","e":"☢️","g":"Brains","t":3,"s":["Two Nobel prizes","Works through anything","Knows radiation"]},{"i":"turing","n":"Alan Turing","r":"Codebreaker","e":"🔐","g":"Brains","t":3,"s":["Breaks any cipher","Builds the machine","Sees the pattern"]},{"i":"lovelace","n":"Ada Lovelace","r":"First programmer","e":"📜","g":"Brains","t":2,"s":["Programs anything","Rigorous","A century early"]},{"i":"tao","n":"Terence Tao","r":"Mathematician","e":"🔢","g":"Brains","t":2,"s":["Solves the unsolvable","Fields Medal","Absurd pattern sense"]},{"i":"johnson","n":"Katherine Johnson","r":"NASA mathematician","e":"📐","g":"Brains","t":2,"s":["Trajectories by hand","Triple-checks","Unshakeable"]},{"i":"davinci","n":"Leonardo da Vinci","r":"Polymath","e":"🎨","g":"Brains","t":3,"s":["Designs anything","Endless ideas","Rarely finishes"]},{"i":"lamarr","n":"Hedy Lamarr","r":"Actor & inventor","e":"📡","g":"Brains","t":2,"s":["Invented frequency hopping","Hides in plain sight","Underestimated"]},{"i":"hopper","n":"Grace Hopper","r":"Computer scientist, rear admiral","e":"💻","g":"Brains","t":2,"s":["Debugs anything","Navy discipline","Builds the tools"]},{"i":"serena","n":"Serena Williams","r":"Tennis champion","e":"🎾","g":"Muscle","t":3,"s":["23 grand slams","Wins from behind","Ferocious"]},{"i":"bolt","n":"Usain Bolt","r":"Sprinter","e":"⚡","g":"Muscle","t":3,"s":["Fastest human ever","Loose under pressure","Big-game nerve"]},{"i":"kipchoge","n":"Eliud Kipchoge","r":"Marathon runner","e":"🏃","g":"Muscle","t":2,"s":["Sub-two marathon","Relentless pace","No limits"]},{"i":"tyson","n":"Mike Tyson","r":"Boxer","e":"🥊","g":"Muscle","t":2,"s":["Frightening speed","Fight IQ","Pure presence"]},{"i":"biles","n":"Simone Biles","r":"Gymnast","e":"🤸","g":"Muscle","t":3,"s":["Total body control","Handles pressure","Knows when to stop"]},{"i":"jackiechan","n":"Jackie Chan","r":"Actor & stuntman","e":"🎬","g":"Muscle","t":3,"s":["Does his own stunts","Improvises weapons","Falls correctly"]},{"i":"ali","n":"Muhammad Ali","r":"Boxer","e":"🦋","g":"Muscle","t":3,"s":["Gets in your head","Takes a punch","Owns the crowd"]},{"i":"messi","n":"Lionel Messi","r":"Footballer","e":"⚽","g":"Muscle","t":3,"s":["Impossible balance","Reads space","Says little"]},{"i":"wimhof","n":"Wim Hof","r":"Cold endurance athlete","e":"🧊","g":"Muscle","t":1,"s":["Ignores cold","Breath control","Sits in ice"]},{"i":"ramsay","n":"Gordon Ramsay","r":"Michelin chef","e":"🔥","g":"Hands","t":3,"s":["Feeds forty from nothing","Runs a kitchen like a warship","Volume"]},{"i":"bottura","n":"Massimo Bottura","r":"Michelin chef","e":"🍝","g":"Hands","t":2,"s":["Cooks from scraps","Three stars","Turns waste into dinner"]},{"i":"child","n":"Julia Child","r":"Chef, former OSS","e":"🥘","g":"Hands","t":2,"s":["Teaches anyone to cook","Wartime service","Unflappable"]},{"i":"bourdain","n":"Anthony Bourdain","r":"Chef & traveller","e":"🌍","g":"Hands","t":3,"s":["Eats anywhere","Talks to anyone","Fixer instincts"]},{"i":"gawande","n":"Atul Gawande","r":"Surgeon & writer","e":"🩺","g":"Hands","t":2,"s":["Checklists that save lives","Systems thinker","Calm"]},{"i":"barnard","n":"Christiaan Barnard","r":"Heart surgeon","e":"❤️","g":"Hands","t":2,"s":["First heart transplant","Steady hands","Bold calls"]},{"i":"tesla","n":"Nikola Tesla","r":"Inventor","e":"🔌","g":"Hands","t":3,"s":["Makes power behave","Obsessive","Hopeless with money"]},{"i":"grandin","n":"Temple Grandin","r":"Animal scientist","e":"🐄","g":"Hands","t":2,"s":["Sees what others miss","Designs the system","Understands animals"]},{"i":"kondo","n":"Marie Kondo","r":"Organising consultant","e":"🧺","g":"Hands","t":1,"s":["Sorts any chaos","Ruthless with clutter","Very calm"]},{"i":"amrishpuri","n":"Amrish Puri","r":"Bollywood villain","e":"🎭","g":"Voice","t":3,"s":["Voice like a landslide","Commands a room","Never breaks character"]},{"i":"srk","n":"Shah Rukh Khan","r":"Bollywood superstar","e":"🌟","g":"Voice","t":3,"s":["Charms anybody","Twenty-hour days","Sells anything"]},{"i":"freeman","n":"Morgan Freeman","r":"Actor","e":"🎙️","g":"Voice","t":3,"s":["That voice","Instant gravitas","Calms a room"]},{"i":"attenborough","n":"David Attenborough","r":"Broadcaster & naturalist","e":"🌿","g":"Voice","t":3,"s":["Explains anything","Trusted worldwide","Field-hardened"]},{"i":"oprah","n":"Oprah Winfrey","r":"Broadcaster","e":"📺","g":"Voice","t":3,"s":["Gets anyone talking","Reaches millions","Reads people"]},{"i":"voss","n":"Chris Voss","r":"FBI hostage negotiator","e":"📞","g":"Voice","t":2,"s":["Talks anyone down","Spots a bluff","Endless patience"]},{"i":"mandela","n":"Nelson Mandela","r":"Statesman","e":"🕊️","g":"Voice","t":3,"s":["Unites enemies","27 years of patience","Moral authority"]},{"i":"churchill","n":"Winston Churchill","r":"Wartime prime minister","e":"🎩","g":"Voice","t":2,"s":["Rallies a nation","Words as weapons","Immovably stubborn"]},{"i":"freddie","n":"Freddie Mercury","r":"Frontman","e":"🎤","g":"Voice","t":3,"s":["Owns any crowd","Four octaves","Fearless"]},{"i":"houdini","n":"Harry Houdini","r":"Escape artist","e":"🔓","g":"Shadows","t":2,"s":["Escapes anything","Picks locks","Showman"]},{"i":"hall","n":"Virginia Hall","r":"WWII spy","e":"🗺️","g":"Shadows","t":2,"s":["Ran resistance networks","Escaped over the Pyrenees","Unbreakable"]},{"i":"wake","n":"Nancy Wake","r":"WWII saboteur","e":"🚲","g":"Shadows","t":2,"s":["Gestapo most-wanted","Rides through checkpoints","Ruthless"]},{"i":"noor","n":"Noor Inayat Khan","r":"WWII radio operator","e":"📻","g":"Shadows","t":2,"s":["Held the line alone","Total nerve","Gave up nothing"]},{"i":"mitnick","n":"Kevin Mitnick","r":"Hacker turned security consultant","e":"💾","g":"Shadows","t":2,"s":["Social engineering","Into any system","Knows the exploit"]},{"i":"warne","n":"Kate Warne","r":"First woman detective","e":"🕵️","g":"Shadows","t":1,"s":["Undercover for months","Reads a room","Foiled a plot"]},{"i":"suntzu","n":"Sun Tzu","r":"Strategist","e":"📖","g":"Shadows","t":3,"s":["Wins before fighting","Master of deception","Endlessly quotable"]},{"i":"machiavelli","n":"Niccolò Machiavelli","r":"Political adviser","e":"🖋️","g":"Shadows","t":2,"s":["Reads power","Advises without flinching","Writes it all down"]},{"i":"chingshih","n":"Ching Shih","r":"Pirate commander","e":"🏴","g":"Shadows","t":2,"s":["Commanded 1,800 ships","Iron code","Negotiated her own amnesty"]},{"i":"grylls","n":"Bear Grylls","r":"Survivalist, former SAS","e":"🪓","g":"Wild","t":3,"s":["Lives off nothing","Eats anything","Always filming"]},{"i":"honnold","n":"Alex Honnold","r":"Free solo climber","e":"🧗","g":"Wild","t":2,"s":["No fear response","Reads a route","Climbs it anyway"]},{"i":"tenzing","n":"Tenzing Norgay","r":"Mountaineer","e":"🏔️","g":"Wild","t":3,"s":["First up Everest","Carries the load","Reads the mountain"]},{"i":"shackleton","n":"Ernest Shackleton","r":"Polar explorer","e":"🧭","g":"Wild","t":3,"s":["Brought every man home","Endurance","Leads in the dark"]},{"i":"cousteau","n":"Jacques Cousteau","r":"Ocean explorer","e":"🫧","g":"Wild","t":2,"s":["Built the aqualung","Films the deep","Sea sense"]},{"i":"irwin","n":"Steve Irwin","r":"Wildlife expert","e":"🐊","g":"Wild","t":3,"s":["Handles apex predators","No fear","Boundless energy"]},{"i":"goodall","n":"Jane Goodall","r":"Primatologist","e":"🦍","g":"Wild","t":2,"s":["Infinite patience","Reads behaviour","Lives rough"]},{"i":"earhart","n":"Amelia Earhart","r":"Aviator","e":"✈️","g":"Wild","t":2,"s":["Flies anything","Navigates alone","Takes the risk"]},{"i":"nyad","n":"Diana Nyad","r":"Marathon swimmer","e":"🌊","g":"Wild","t":1,"s":["Cuba to Florida","Will not quit","Pain tolerance"]},{"i":"kranz","n":"Gene Kranz","r":"NASA flight director","e":"🎛️","g":"Systems","t":3,"s":["Failure is not an option","Runs the control room","Ice cold"]},{"i":"hamilton","n":"Margaret Hamilton","r":"Apollo software lead","e":"👩‍💻","g":"Systems","t":2,"s":["Code that landed Apollo","Plans for failure","Rigorous"]},{"i":"hadfield","n":"Chris Hadfield","r":"Astronaut","e":"👨‍🚀","g":"Systems","t":3,"s":["Fixes things in orbit","Trains for disaster","Plays guitar"]},{"i":"sully","n":"Sully Sullenberger","r":"Airline captain","e":"🛬","g":"Systems","t":3,"s":["Landed on the Hudson","208 seconds to decide","Checklists"]},{"i":"nightingale","n":"Florence Nightingale","r":"Nurse & statistician","e":"🕯️","g":"Systems","t":3,"s":["Builds a hospital from nothing","Data-driven","Immovable"]},{"i":"buffett","n":"Warren Buffett","r":"Investor","e":"💰","g":"Systems","t":3,"s":["Prices anything","Endless patience","Reads a balance sheet"]},{"i":"nooyi","n":"Indra Nooyi","r":"Former PepsiCo CEO","e":"📊","g":"Systems","t":2,"s":["Runs a global machine","Reads markets","Straight talker"]},{"i":"tata","n":"Ratan Tata","r":"Industrialist","e":"🏭","g":"Systems","t":3,"s":["Builds for the long term","Deeply trusted","Deep pockets"]},{"i":"napoleon","n":"Napoleon Bonaparte","r":"General","e":"🐎","g":"Systems","t":3,"s":["Moves armies fast","Decides instantly","Overreaches"]},{"i":"keanu","n":"Keanu Reeves","r":"Actor","e":"🕶️","g":"Strange","t":3,"s":["Trains for real","Universally liked","Gives it away"]},{"i":"dolly","n":"Dolly Parton","r":"Musician & philanthropist","e":"🎸","g":"Strange","t":3,"s":["A song for anything","Everyone's ally","Serious business brain"]},{"i":"rogers","n":"Fred Rogers","r":"Television host","e":"👟","g":"Strange","t":2,"s":["Calms anyone","Absolute sincerity","Talks to children"]},{"i":"bobross","n":"Bob Ross","r":"Painter","e":"🖌️","g":"Strange","t":2,"s":["Nobody panics near him","Steady hands","Happy accidents"]},{"i":"blaine","n":"David Blaine","r":"Endurance magician","e":"🃏","g":"Strange","t":2,"s":["Holds his breath 17 minutes","Misdirection","Endures anything"]},{"i":"banksy","n":"Banksy","r":"Street artist","e":"🖼️","g":"Strange","t":2,"s":["Nobody knows the face","In and out unseen","Controls the story"]},{"i":"weirdal","n":"Weird Al Yankovic","r":"Parodist","e":"🪗","g":"Strange","t":1,"s":["Turns anything into a song","Beloved by all","Accordion"]},{"i":"dhoni","n":"MS Dhoni","r":"Cricket captain","e":"🏏","g":"Strange","t":3,"s":["Ice in a run chase","Reads the game","Finishes it"]},{"i":"jobs","n":"Steve Jobs","r":"Product visionary","e":"📱","g":"Strange","t":3,"s":["Sells the future","Impossible standards","Reality distortion"]}];
+const SCENES=[{"i":"zombie","n":"The Outbreak","e":"🧟","u":"Something is spreading. Get out of the city and set up somewhere that survives the winter.","k":["Getting out alive","Food, water, power","Not turning on each other"]},{"i":"ipo","n":"The IPO","e":"📈","u":"Your five are the whole company. Eleven weeks to listing and a journalist is circling.","k":["Convincing the money","Surviving due diligence","Killing the story"]},{"i":"mars","n":"The Mars Transit","e":"🚀","u":"Nine months in a tube, two years on the surface. Your five are the entire crew.","k":["Keeping the hardware alive","Keeping each other sane","Improvising repairs"]},{"i":"trial","n":"The Murder Trial","e":"⚖️","u":"You are on trial for something you did not do. Your five are the whole defence.","k":["Breaking the case","Finding what really happened","Winning twelve strangers"]},{"i":"heist","n":"The Vault","e":"💎","u":"One building, one night, one object. Your five are the entire crew.","k":["Getting in","Getting the thing","Nobody talking after"]},{"i":"island","n":"The Island","e":"🏝","u":"The boat is gone. Rescue is a year away, if it comes.","k":["Surviving week one","Building something better","Morale with no exit"]},{"i":"election","n":"The Campaign","e":"🗳️","u":"Six weeks out, fourteen points down. One of your five has to be the candidate.","k":["Moving opinion fast","Surviving the dirt","Ground game with no money"]},{"i":"restaurant","n":"Opening Night","e":"🍽","u":"Eight weeks to open in a city that eats restaurants. The critic has already booked.","k":["Food worth the price","A room that runs itself","Getting anyone through the door"]},{"i":"submarine","n":"The Deep Dive","e":"🚢","u":"Four hundred metres down, comms cut, something is leaking.","k":["Fixing it with what is aboard","Rationing air","Deciding who gives orders"]},{"i":"cult","n":"The Extraction","e":"👁️","u":"Get someone out of a compound. She does not want to leave.","k":["Getting inside","Changing one mind","Leaving unfollowed"]},{"i":"pandemic","n":"The Ward","e":"🏥","u":"A hospital with failing power, no supply chain and four hundred patients. You run it now.","k":["Triage at scale","Supplies that never come","Staff past breaking"]},{"i":"festival","n":"The Festival","e":"🎪","u":"Ninety thousand people, one field. Two headliners just cancelled and the weather turned.","k":["Crowd safety","Filling the lineup","Not getting sued"]},{"i":"firstcontact","n":"First Contact","e":"🛸","u":"Something landed. It is patient. Your five were the closest qualified humans.","k":["Communicating at all","Not starting a war","Eight billion frightened people"]},{"i":"blackout","n":"The Blackout","e":"🔌","u":"Grid down across three states, day nine. Your five run a neighbourhood of eleven thousand.","k":["Water, heat, food","Order without police","A plan for months of this"]},{"i":"boardroom","n":"The Takeover","e":"👔","u":"A raider holds 31% and the board votes in nine days. Your five are the defence.","k":["Winning the vote","Finding leverage","Keeping the story straight"]},{"i":"kidnap","n":"The Ransom","e":"📞","u":"Someone has been taken abroad. You have a phone number and a deadline.","k":["Keeping the line open","Finding where they are","Paying, or not"]},{"i":"antarctic","n":"The Winterover","e":"🧊","u":"Eight months of dark at an isolated station. No flights until spring, whatever happens.","k":["Machinery that must not fail","The same five faces","No medical evacuation"]},{"i":"documentary","n":"The Exposé","e":"🎥","u":"Eleven weeks to prove a very rich man did a very bad thing. His lawyers know your names.","k":["Terrified sources","Evidence that survives legal","Publishing before you are stopped"]}];
+
+/* ------------------------------------------------------------------ setup */
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rand = (n) => Math.floor(Math.random() * n);
+const shuffle = (a) => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rand(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+const CFG = { budget: 100, roster: 5, openMs: 6500, bidMs: 4200, soldMs: 1800, passMs: 1200, revealMs: 7000, lineMax: 160 };
+
+// Which card categories a scenario rewards. Only the bots use this -- it is how
+// they judge a crew at voting time, so the vote is about fit, not coin flips.
+const FAVOURS = {
+  zombie: ['Wild', 'Hands', 'Muscle'], ipo: ['Systems', 'Voice', 'Brains'],
+  mars: ['Systems', 'Brains', 'Hands'], trial: ['Voice', 'Brains', 'Shadows'],
+  heist: ['Shadows', 'Hands', 'Brains'], island: ['Wild', 'Hands', 'Muscle'],
+  election: ['Voice', 'Systems', 'Shadows'], restaurant: ['Hands', 'Voice', 'Systems'],
+  submarine: ['Systems', 'Hands', 'Muscle'], cult: ['Voice', 'Shadows', 'Brains'],
+  pandemic: ['Systems', 'Hands', 'Voice'], festival: ['Systems', 'Voice', 'Muscle'],
+  firstcontact: ['Brains', 'Voice', 'Systems'], blackout: ['Systems', 'Hands', 'Wild'],
+  boardroom: ['Systems', 'Voice', 'Shadows'], kidnap: ['Shadows', 'Voice', 'Systems'],
+  antarctic: ['Wild', 'Systems', 'Hands'], documentary: ['Shadows', 'Voice', 'Brains'],
+};
+
+// Bot defences: a stem plus the reason their star fits, so they read like
+// somebody actually arguing rather than a canned line.
+const BOT_DEFENCE = [
+  (n, t) => `${n} has done worse than this on a Tuesday. ${t} — that is the whole job.`,
+  (n, t) => `Everything here runs through ${n}. ${t}, and the rest of us just carry things.`,
+  (n, t) => `You all bought famous. I bought useful: ${n.split(' ')[0]} ${t.toLowerCase()}.`,
+  (n, t) => `${t}. That is ${n}, and that is why this works.`,
+  (n, t) => `Give ${n} a week. ${t} beats whatever you five are planning.`,
+];
+
+/* ------------------------------------------------------------------ state */
+let G = null;
+let timer = null;
+
+function newGame(carry) {
+  const players = [
+    { id: 'you', name: 'You', human: true, emoji: '🎯', tint: 'var(--p1)', taste: null, nerve: 1 },
+    { id: 'priya', name: 'Priya', emoji: '🪙', tint: 'var(--p2)', taste: ['Voice', 'Brains'], nerve: 1.25 },
+    { id: 'tomas', name: 'Tomás', emoji: '🧊', tint: 'var(--p3)', taste: ['Systems', 'Shadows'], nerve: 0.72 },
+    { id: 'nkechi', name: 'Nkechi', emoji: '🔥', tint: 'var(--p4)', taste: ['Wild', 'Muscle'], nerve: 1.05 },
+  ].map((p) => ({
+    ...p,
+    budget: CFG.budget, roster: [], mvpId: null, line: '', vote: null, votes: 0,
+    score: (carry && carry[p.id]) || 0,
+  }));
+
+  return {
+    round: (G ? G.round : 0) + 1,
+    players, lots: buildLots(players.length), idx: -1, lot: null,
+    unsold: [], sold: [], phase: 'auction', scenario: null,
+    usedScenes: G ? G.usedScenes : [], results: null,
+  };
+}
+
+/** Stratified so the loud names are spread through the running order. */
+function buildLots(count) {
+  const need = count * CFG.roster;
+  const target = Math.min(CARDS.length, need + Math.round(need * 0.35));
+  const tiers = new Map();
+  for (const c of shuffle(CARDS)) {
+    if (!tiers.has(c.t)) tiers.set(c.t, []);
+    tiers.get(c.t).push(c);
+  }
+  const buckets = [...tiers.keys()].sort((a, b) => b - a).map((k) => tiers.get(k));
+  const picked = [];
+  let i = 0;
+  while (picked.length < target && buckets.some((b) => b.length)) {
+    const b = buckets[i++ % buckets.length];
+    if (b.length) picked.push(b.pop());
+  }
+  return shuffle(picked).slice(0, target);
+}
+
+const me = () => G.players[0];
+const emptySlots = (p) => CFG.roster - p.roster.length;
+const maxBid = (p) => (emptySlots(p) <= 0 ? 0 : p.budget - (emptySlots(p) - 1));
+const minBid = () => (G.lot ? G.lot.bid + 1 : 1);
+
+/* ---------------------------------------------------------------- auction */
+function nextLot() {
+  if (G.players.every((p) => p.roster.length >= CFG.roster) || G.idx + 1 >= G.lots.length) return endAuction();
+  G.idx++;
+  const card = G.lots[G.idx];
+  G.lot = { card, bid: 0, holder: null, status: 'bidding' };
+  for (const p of G.players.slice(1)) {
+    const base = card.t * 15 + rand(16);
+    const bonus = p.taste.includes(card.g) ? 16 : 0;
+    p.value = Math.round((base + bonus) * p.nerve);
+    p.wait = 400 + rand(1600); // reaction time, so bids do not land in lockstep
+  }
+  timer = Date.now() + CFG.openMs;
+  render();
+}
+
+function placeBid(playerId, amount) {
+  const p = G.players.find((x) => x.id === playerId);
+  if (!p || !G.lot || G.lot.status !== 'bidding') return false;
+  if (p.roster.length >= CFG.roster || G.lot.holder === playerId) return false;
+  if (amount < minBid() || amount > maxBid(p)) return false;
+  G.lot.bid = amount;
+  G.lot.holder = playerId;
+  timer = Date.now() + CFG.bidMs; // every bid resets the clock
+  render();
+  return true;
+}
+
+function resolveLot() {
+  const lot = G.lot;
+  if (lot.holder) {
+    const w = G.players.find((p) => p.id === lot.holder);
+    w.budget -= lot.bid;
+    w.roster.push({ ...lot.card, price: lot.bid, free: false });
+    G.sold.unshift({ card: lot.card, price: lot.bid, who: w.name });
+    lot.status = 'sold';
+    timer = Date.now() + CFG.soldMs;
+  } else {
+    G.unsold.push(lot.card);
+    lot.status = 'passed';
+    timer = Date.now() + CFG.passMs;
+  }
+  render();
+}
+
+function endAuction() {
+  const bin = shuffle(G.unsold);
+  for (const p of G.players) {
+    while (p.roster.length < CFG.roster && bin.length) p.roster.push({ ...bin.pop(), price: 0, free: true });
+  }
+  const pool = SCENES.filter((s) => !G.usedScenes.includes(s.i));
+  G.scenario = (pool.length ? pool : SCENES)[rand(pool.length ? pool.length : SCENES.length)];
+  G.usedScenes.push(G.scenario.i);
+  G.lot = null;
+  G.phase = 'reveal';
+  timer = Date.now() + CFG.revealMs;
+  render();
+}
+
+/* ------------------------------------------------------------ bots acting */
+function botsThink() {
+  if (!G || G.phase !== 'auction' || !G.lot || G.lot.status !== 'bidding') return;
+  for (const p of G.players.slice(1)) {
+    if (p.roster.length >= CFG.roster || G.lot.holder === p.id) continue;
+    if (p.wait > 0) { p.wait -= 300; continue; }
+    const want = Math.min(p.value, maxBid(p));
+    const next = minBid();
+    if (next > want) continue;
+    const desperate = emptySlots(p) >= G.lots.length - G.idx;
+    if (!desperate && Math.random() > 0.55) continue;
+    // Jump a third of the way to what they think it is worth. Creeping up a
+    // credit at a time is realistic and unbearably slow to sit through.
+    const jump = Math.max(1, Math.round((want - next) * 0.34));
+    placeBid(p.id, Math.min(want, next + rand(jump)));
+    p.wait = 200 + rand(900);
+  }
+}
+
+function botsPitch() {
+  const unused = shuffle(BOT_DEFENCE); // no two bots reach for the same stem
+  for (const p of G.players.slice(1)) {
+    const fav = FAVOURS[G.scenario.i] || [];
+    // Star the best fit for the scenario, breaking ties by what they paid.
+    const best = p.roster.slice().sort((a, b) => {
+      const fa = fav.indexOf(a.g), fb = fav.indexOf(b.g);
+      return (fa === -1 ? 9 : fa) - (fb === -1 ? 9 : fb) || b.price - a.price;
+    })[0];
+    p.mvpId = best.i;
+    p.line = unused.pop()(best.n, best.s[0]).slice(0, CFG.lineMax);
+  }
+}
+
+function crewFit(p) {
+  const fav = FAVOURS[G.scenario.i] || [];
+  let score = 0;
+  for (const c of p.roster) {
+    const at = fav.indexOf(c.g);
+    if (at !== -1) score += 3 - at;
+    if (c.i === p.mvpId && at !== -1) score += 2;
+  }
+  // A written defence counts for something, the way it does at a real table.
+  if (p.line) score += 1.5;
+  return score + Math.random() * 2.5;
+}
+
+function botsVote() {
+  for (const p of G.players.slice(1)) {
+    p.vote = G.players.filter((o) => o.id !== p.id).sort((a, b) => crewFit(b) - crewFit(a))[0].id;
+  }
+}
+
+/* --------------------------------------------------------------- scoring */
+function finishRound() {
+  for (const p of G.players) p.votes = 0;
+  for (const p of G.players) if (p.vote) G.players.find((x) => x.id === p.vote).votes++;
+
+  const top = Math.max(...G.players.map((p) => p.votes));
+  const winners = G.players.filter((p) => p.votes === top && top > 0);
+  const scored = G.players.map((p) => {
+    let pts = p.votes * 3;
+    if (winners.length === 1 && p.votes === top) pts += 2;
+    p.score += pts;
+    return { id: p.id, name: p.name, votes: p.votes, spent: CFG.budget - p.budget, pts, total: p.score };
+  }).sort((a, b) => b.votes - a.votes || b.pts - a.pts);
+
+  G.results = { scored, winners: winners.map((w) => w.id), tie: winners.length > 1 };
+  G.phase = 'results';
+  timer = null;
+  render();
+}
+
+/* ------------------------------------------------------------------ clock */
+setInterval(() => {
+  if (!G) return;
+  botsThink();
+  const left = timer ? timer - Date.now() : null;
+  $('clock').classList.toggle('hidden', left == null);
+  if (left != null) {
+    const secs = Math.max(0, Math.ceil(left / 1000));
+    $('clock').textContent = secs;
+    $('clock').classList.toggle('urgent', secs <= 5 && G.phase === 'auction' && G.lot && G.lot.status === 'bidding');
+  }
+  if (left != null && left <= 0) advance();
+}, 300);
+
+function advance() {
+  if (G.phase === 'auction') {
+    if (G.lot.status === 'bidding') resolveLot();
+    else nextLot();
+  } else if (G.phase === 'reveal') {
+    G.phase = 'pitch';
+    botsPitch();
+    timer = null;
+    render();
+  } else if (G.phase === 'pitch') {
+    goVote();
+  } else if (G.phase === 'vote') {
+    if (!me().vote) me().vote = G.players[1 + rand(3)].id;
+    finishRound();
+  }
+}
+
+function goVote() {
+  const you = me();
+  // Starring is optional; skipping it nominates the big signing.
+  if (!you.mvpId) you.mvpId = you.roster.reduce((b, c) => (c.price > b.price ? c : b), you.roster[0]).i;
+  you.line = $('line-input').value.replace(/\s+/g, ' ').trim().slice(0, CFG.lineMax);
+  botsVote();
+  G.phase = 'vote';
+  timer = null;
+  render();
+}
+
+/* ----------------------------------------------------------------- render */
+const PHASE_NAME = { auction: 'Auction', reveal: 'Reveal', pitch: 'Defend', vote: 'Vote', results: 'Scores' };
+
+function render() {
+  const show = (id, on) => $(id).classList.toggle('hidden', !on);
+  show('p-auction', G.phase === 'auction');
+  show('p-reveal', G.phase === 'reveal');
+  show('p-pitch', G.phase === 'pitch');
+  show('p-vote', G.phase === 'vote');
+  show('p-results', G.phase === 'results');
+
+  $('phase-name').textContent = PHASE_NAME[G.phase];
+  $('round-no').textContent = `R${G.round}`;
+  $('btn-skip').classList.toggle('hidden', G.phase === 'results' || G.phase === 'vote');
+
+  if (G.phase === 'auction') renderAuction();
+  if (G.phase === 'reveal') renderReveal();
+  if (G.phase === 'pitch') renderPitch();
+  if (G.phase === 'vote') renderVote();
+  if (G.phase === 'results') renderResults();
+}
+
+const avatar = (p, size) => `<span class="avatar" style="background:${p.tint}${size ? `;width:${size};height:${size}` : ''}">${p.emoji}</span>`;
+
+function renderAuction() {
+  const lot = G.lot, you = me();
+  const cardEl = $('lot-card');
+  // The element is reused, so retrigger the pop animation per lot.
+  if (cardEl.dataset.lotId !== String(G.idx)) {
+    cardEl.dataset.lotId = String(G.idx);
+    cardEl.style.animation = 'none';
+    void cardEl.offsetWidth;
+    cardEl.style.animation = '';
+  }
+
+  $('lot-count').textContent = `Lot ${G.idx + 1} of ${G.lots.length}`;
+  $('lot-face').textContent = lot.card.e;
+  $('lot-cat').textContent = lot.card.g;
+  $('lot-name').textContent = lot.card.n;
+  $('lot-role').textContent = lot.card.r;
+  $('lot-traits').innerHTML = lot.card.s.map((t) => `<li>${esc(t)}</li>`).join('');
+
+  cardEl.classList.toggle('passed', lot.status === 'passed');
+  const oldStamp = cardEl.querySelector('.stamp');
+  if (oldStamp) oldStamp.remove();
+  const holder = lot.holder ? G.players.find((p) => p.id === lot.holder) : null;
+  if (lot.status !== 'bidding') {
+    const stamp = document.createElement('div');
+    stamp.className = 'stamp' + (lot.status === 'sold' ? ' sold' : '');
+    stamp.innerHTML = lot.status === 'sold'
+      ? `<div>SOLD<small>${esc(holder.name)} · ${lot.bid}</small></div>`
+      : '<div>NO BIDS</div>';
+    cardEl.appendChild(stamp);
+  }
+
+  $('bid-now').textContent = lot.bid || '––';
+  $('bid-now').classList.toggle('empty', !lot.bid);
+  $('bid-holder').textContent = holder ? `held by ${holder.name}` : 'no bids yet';
+
+  $('my-budget').textContent = you.budget;
+  $('my-max').textContent = Math.max(0, maxBid(you));
+  $('my-slots').innerHTML = Array.from({ length: CFG.roster }, (_, i) => {
+    const c = you.roster[i];
+    return c ? `<li class="slot filled" title="${esc(c.n)}">${c.e}</li>` : '<li class="slot empty"></li>';
+  }).join('');
+
+  $('room-list').innerHTML = G.players.map((p) => `
+    <li class="${lot.holder === p.id ? 'high' : ''}">
+      ${avatar(p)}<span class="nm">${esc(p.name)}</span>
+      <span class="amt">${p.budget} · ${p.roster.length}/${CFG.roster}</span></li>`).join('');
+
+  const full = you.roster.length >= CFG.roster;
+  const live = lot.status === 'bidding';
+  const holding = lot.holder === 'you';
+  const can = live && !full && !holding && maxBid(you) >= minBid();
+  for (const b of document.querySelectorAll('[data-step]')) {
+    const amt = Math.max(minBid(), lot.bid + Number(b.dataset.step));
+    b.textContent = amt;
+    b.disabled = !can || amt > maxBid(you);
+    b.dataset.amount = amt;
+  }
+  const after = CFG.roster - you.roster.length - 1;
+  $('bid-hint').textContent = full ? 'Roster full.'
+    : holding ? 'Yours, unless somebody speaks.'
+    : maxBid(you) < minBid() ? 'Out of reach.'
+    : after > 0 ? `Ceiling ${maxBid(you)} · ${after} reserved for empty slots`
+    : `Ceiling ${maxBid(you)} · last slot`;
+}
+
+function renderReveal() {
+  const s = G.scenario;
+  $('rev-face').textContent = s.e;
+  $('rev-title').textContent = s.n;
+  $('rev-setup').textContent = s.u;
+  $('rev-stakes').innerHTML = s.k.map((t) => `<li>${esc(t)}</li>`).join('');
+}
+
+function bannerHtml(s, compact) {
+  return `<span class="banner__face">${s.e}</span>
+    <div><h2>${esc(s.n)}</h2>${compact ? '' : `<p>${esc(s.u)}</p>`}</div>`;
+}
+
+function renderPitch() {
+  const you = me();
+  $('pitch-banner').innerHTML = bannerHtml(G.scenario);
+
+  // Rebuild only when the hand changes, so starring does not restart the
+  // entrance animation on all five.
+  const grid = $('crew-pick');
+  const signature = `${G.round}:${you.roster.map((c) => c.i).join(',')}`;
+  if (grid.dataset.signature !== signature) {
+    grid.dataset.signature = signature;
+    grid.innerHTML = you.roster.map((c) => `
+      <button class="pick" data-mvp="${c.i}">
+        <span class="pick__face">${c.e}</span>
+        <span class="pick__nm">${esc(c.n)}</span>
+        <span class="pick__role">${esc(c.r)}</span>
+        <span class="pick__star">⭐</span>
+      </button>`).join('');
+  }
+  for (const btn of grid.children) btn.classList.toggle('starred', btn.dataset.mvp === you.mvpId);
+}
+
+function renderVote() {
+  $('vote-banner').innerHTML = bannerHtml(G.scenario, true);
+  const you = me();
+  $('answers').innerHTML = G.players.map((p) => `
+    <article class="answer${you.vote === p.id ? ' picked' : ''}" style="--tint:${p.tint}">
+      <div class="answer__who">${avatar(p)} ${esc(p.name)}${p.human ? ' (you)' : ''}</div>
+      <p class="answer__text${p.line ? '' : ' none'}">${p.line ? esc(p.line) : 'Said nothing at all.'}</p>
+      <div class="answer__crew">${p.roster.map((c) => `
+        <span class="${c.i === p.mvpId ? 'star' : ''}">${c.e} ${esc(c.n)}</span>`).join('')}</div>
+      ${p.human ? '<p class="mine">Your crew</p>'
+        : `<button class="btn ${you.vote === p.id ? 'on' : ''}" data-vote="${p.id}">${you.vote === p.id ? 'Voted ✓' : 'Vote'}</button>`}
+    </article>`).join('');
+}
+
+function renderResults() {
+  const r = G.results;
+  const champ = r.scored[0];
+  $('res-headline').textContent = r.tie ? 'Split decision!'
+    : champ.votes > 0 ? (champ.name === 'You' ? 'You win the round!' : `${champ.name} wins the round`)
+    : 'Nobody convinced anybody';
+  $('res-sub').textContent = `${G.scenario.n} · round ${G.round}`;
+  $('scores').innerHTML = r.scored.map((s, i) => {
+    const p = G.players.find((x) => x.id === s.id);
+    return `<div class="score${r.winners.includes(s.id) ? ' win' : ''}">
+      <div class="score__rank">${i + 1}</div>
+      <div>
+        <div class="score__nm">${avatar(p)} ${esc(s.name)}</div>
+        <div class="score__sub">${s.votes} vote${s.votes === 1 ? '' : 's'} · spent ${s.spent} · ${s.total} total</div>
+        ${p.line ? `<div class="score__line">“${esc(p.line)}”</div>` : ''}
+      </div>
+      <div class="score__pts">+${s.pts}</div>
+    </div>`;
+  }).join('');
+}
+
+/* ----------------------------------------------------------------- input */
+$('btn-start').addEventListener('click', () => {
+  $('start').classList.add('hidden');
+  $('game').classList.remove('hidden');
+  G = newGame(null);
+  nextLot();
+});
+
+document.querySelector('.keys').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-step]');
+  if (b && !b.disabled) placeBid('you', Number(b.dataset.amount));
+});
+
+$('crew-pick').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-mvp]');
+  if (!b) return;
+  // Tapping the starred one again clears it.
+  me().mvpId = me().mvpId === b.dataset.mvp ? null : b.dataset.mvp;
+  render();
+});
+
+/** Grow to fit: a defence you cannot see all of is worse than no defence. */
+function fitWriter() {
+  const box = $('line-input');
+  box.style.height = 'auto';
+  box.style.height = `${box.scrollHeight}px`;
+}
+
+$('line-input').addEventListener('input', () => {
+  const n = $('line-input').value.length;
+  $('count').textContent = `${n} / ${CFG.lineMax}`;
+  $('count').classList.toggle('close', n > CFG.lineMax - 25);
+  fitWriter();
+});
+
+$('btn-ready').addEventListener('click', goVote);
+
+$('answers').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-vote]');
+  if (!b) return;
+  me().vote = b.dataset.vote;
+  render();
+  setTimeout(finishRound, 450);
+});
+
+$('btn-skip').addEventListener('click', () => advance());
+
+$('btn-again').addEventListener('click', () => {
+  const carry = Object.fromEntries(G.players.map((p) => [p.id, p.score]));
+  G = newGame(carry);
+  $('line-input').value = '';
+  $('count').textContent = `0 / ${CFG.lineMax}`;
+  fitWriter();
+  nextLot();
+});
+
+// B raises by one, the way a paddle does.
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, textarea')) return;
+  if ((e.key === 'b' || e.key === 'B') && G && G.phase === 'auction') {
+    const b = document.querySelector('[data-step="1"]');
+    if (b && !b.disabled) placeBid('you', Number(b.dataset.amount));
+  }
+});
+</script>
